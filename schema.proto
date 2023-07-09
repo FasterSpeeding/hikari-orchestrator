@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+service Orchestrator {
+    rpc Acquire (stream Shard) returns (stream Instruction) {}
+    rpc Disconnect (ShardId) returns (DisconnectResult) {}
+    rpc GetState (ShardId) returns (Shard) {}
+}
+
+enum InstructionType {
+    DISCONNECT = 0;
+}
+
+message Instruction {
+    InstructionType type = 1;
+}
+
+message ShardId {
+    int64 shard_id = 1;
+}
+
+enum ShardState {
+    NOT_STARTED = 0;
+    STARTING = 1;
+    STARTED = 2;
+    STOPPED = 3;
+}
+
+// TODO: add gateway_url
+message Shard {
+    ShardState state = 1;
+    google.protobuf.Timestamp last_seen = 2;
+    double latency = 3;
+    optional string session_id = 4;
+    optional int64 seq = 5;
+    int64 shard_id = 6;
+}
+
+enum StatusType {
+    FAILED = 0;
+    SUCCESS = 2;
+}
+
+message DisconnectResult {
+    StatusType status = 1;
+    optional Shard state = 2;
+}
