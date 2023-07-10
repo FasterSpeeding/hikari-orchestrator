@@ -105,8 +105,8 @@ async def _handle_instructions(shard: _TrackedShard, /) -> None:
 
 async def _handle_status(shard: _TrackedShard, /) -> None:
     while True:
-        await shard.update_status()
         await asyncio.sleep(30)
+        await shard.update_status()
 
 
 class Client:
@@ -152,9 +152,21 @@ class Client:
         stream = live_attrs.orchestrator.Acquire()
         state = _protos.Shard(state=_protos.ShardState.STARTING, last_seen=_now())
         live_attrs.shards[shard.id] = tracked_shard = _TrackedShard(live_attrs, shard, stream)
-        tracked_shard.instructions_task = asyncio.create_task(_handle_instructions(tracked_shard))
-        tracked_shard.status_task = asyncio.create_task(_handle_status(tracked_shard))
-        await stream.write(state)
+
+        try:
+            await stream.write(state)
+            await anext(aiter(stream))  # Should always be CONNECT right now
+            await shard.start()
+
+            tracked_shard.instructions_task = asyncio.create_task(_handle_instructions(tracked_shard))
+            tracked_shard.status_task = asyncio.create_task(_handle_status(tracked_shard))
+            await tracked_shard.update_status()
+
+        except Exception:  # This currently may raise an error which can't be pickled
+            import traceback
+
+            traceback.print_exc()
+            raise RuntimeError("Can't pickle error") from None
 
     async def recommend_shard(self, make_shard: collections.Callable[[int], hikari.api.GatewayShard], /) -> None:
         ...

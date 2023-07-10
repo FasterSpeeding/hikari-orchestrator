@@ -77,12 +77,15 @@ class Orchestrator(_protos.OrchestratorServicer):
         if not stored:
             raise KeyError("Shard not known")
 
-        if stored.state.state is not _protos.STOPPED:
+        if stored.state.state is _protos.STARTED:
             raise NotImplementedError("Cannot take over right now")
 
         shard_state.last_seen.FromDatetime(_now())
         stored.state = shard_state
         state_event = asyncio.create_task(_handle_states(stored, request_iterator))
+
+        # TODO: work out scheduling
+        yield _protos.Instruction(type=_protos.InstructionType.CONNECT)
 
         queue = stored.queue = asyncio.Queue[_protos.Instruction]()
         queue_wait = asyncio.create_task(queue.get())
@@ -101,7 +104,7 @@ class Orchestrator(_protos.OrchestratorServicer):
             stored.state.state = _protos.STOPPED
             stored.queue = None
 
-    def Disconnect(self, request: _protos.ShardId, context: grpc.ServicerContext) -> _protos.DisconnectResult:
+    def Disconnect(self, request: _protos.ShardId, _: grpc.ServicerContext) -> _protos.DisconnectResult:
         shard = self._shards.get(request.shard_id)
         if not shard or not shard.queue:
             return _protos.DisconnectResult(_protos.FAILED)
@@ -110,8 +113,11 @@ class Orchestrator(_protos.OrchestratorServicer):
         shard.queue.put_nowait(instruction)
         return _protos.DisconnectResult(_protos.SUCCESS, shard.state)
 
-    def GetState(self, request: _protos.ShardId, context: grpc.ServicerContext) -> _protos.Shard:
+    def GetState(self, request: _protos.ShardId, _: grpc.ServicerContext) -> _protos.Shard:
         return self._shards[request.shard_id].state
+
+    async def SendPayload(self, request: _protos.GatewayPayload, context: grpc.ServicerContext) -> _protos.Empty:
+        return _protos.Empty()
 
 
 def _spawn_child(
@@ -171,7 +177,7 @@ async def spawn_subprocesses(
     executor = concurrent.futures.ProcessPoolExecutor()
     chunk_size = math.ceil(len(shard_ids) / subprocess_count)
     loop = asyncio.get_running_loop()
-    for index in range(0, len(shard_ids), subprocess_count):
+    for index in range(0, len(shard_ids), chunk_size):
         loop.run_in_executor(
             executor,
             _spawn_child,

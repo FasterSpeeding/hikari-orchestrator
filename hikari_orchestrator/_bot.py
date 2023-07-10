@@ -227,9 +227,11 @@ class Bot(hikari.GatewayBotAware):
         if not self._close_event:
             raise RuntimeError("Not running")
 
+        await self._event_manager.dispatch(self._event_factory.deserialize_stopping_event())
         await self._manager.stop()
         self._close_event.set()
         self._close_event = None
+        await self._event_manager.dispatch(self._event_factory.deserialize_stopped_event())
 
     async def _spawn_shard(self, shard_id: int, /) -> None:
         shard = hikari.impl.GatewayShardImpl(
@@ -250,4 +252,5 @@ class Bot(hikari.GatewayBotAware):
 
         self._close_event = asyncio.Event()
         await self._manager.start(self._manager_address, credentials=self._credentials)
-        await asyncio.gather(*map(self._spawn_shard, self._shard_ids))
+        await self._event_manager.dispatch(self._event_factory.deserialize_starting_event())
+        await self._event_manager.dispatch(self._event_factory.deserialize_started_event())
