@@ -30,24 +30,3 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """"""
 from __future__ import annotations
-
-import asyncio
-import logging
-
-import grpc.aio  # type: ignore
-
-# from . import _protos
-# from . import _service
-
-
-async def _main() -> None:
-    server = grpc.aio.server()
-    # _protos.add_OrchestratorServicer_to_server(_service.Orchestrator("token", 123, ), server)
-    server.add_insecure_port("[::]:50051")
-    await server.start()
-    await server.wait_for_termination()
-
-
-if __name__ == "__main__":
-    logging.basicConfig()
-    asyncio.run(_main())

@@ -51,6 +51,7 @@ class Bot(hikari.GatewayBotAware):
     __slots__ = (
         "_cache_settings",
         "_cache",
+        "_close_event",
         "_credentials",
         "_entity_factory",
         "_event_factory",
@@ -58,11 +59,11 @@ class Bot(hikari.GatewayBotAware):
         "_gateway_url",
         "_http_settings",
         "_intents",
-        "_is_alive",
         "_manager",
         "_manager_address",
         "_proxy_settings",
         "_rest",
+        "_shards",
         "_shard_count",
         "_shard_ids",
         "_token",
@@ -87,9 +88,9 @@ class Bot(hikari.GatewayBotAware):
     ) -> None:
         self._cache_settings = cache_settings or hikari.impl.CacheSettings()
         self._cache = hikari.impl.CacheImpl(self, self._cache_settings)
+        self._close_event: asyncio.Event | None = None
         self._credentials = credentials
         self._intents = hikari.Intents(intents)
-        self._is_alive = False
         self._entity_factory = hikari.impl.EntityFactoryImpl(self)
         # TODO: export at hikari.impl
         self._event_factory = hikari.impl.event_factory.EventFactoryImpl(self)
@@ -166,7 +167,7 @@ class Bot(hikari.GatewayBotAware):
 
     @property
     def is_alive(self) -> bool:
-        return self._is_alive
+        return self._close_event is not None
 
     @property
     def shards(self) -> collections.Mapping[int, hikari.api.GatewayShard]:
@@ -212,7 +213,10 @@ class Bot(hikari.GatewayBotAware):
         raise NotImplementedError
 
     async def join(self) -> None:
-        raise NotImplementedError
+        if not self._close_event:
+            raise RuntimeError("Not running")
+
+        await self._close_event.wait()
 
     def run(self) -> None:
         loop = asyncio.new_event_loop()
@@ -220,10 +224,12 @@ class Bot(hikari.GatewayBotAware):
         loop.run_until_complete(self.join())
 
     async def close(self) -> None:
-        if not self._is_alive:
+        if not self._close_event:
             raise RuntimeError("Not running")
 
         await self._manager.stop()
+        self._close_event.set()
+        self._close_event = None
 
     async def _spawn_shard(self, shard_id: int, /) -> None:
         shard = hikari.impl.GatewayShardImpl(
@@ -239,8 +245,9 @@ class Bot(hikari.GatewayBotAware):
         self._shards[shard.id] = shard
 
     async def start(self) -> None:
-        if self._is_alive:
+        if self._close_event:
             raise RuntimeError("Already running")
 
+        self._close_event = asyncio.Event()
         await self._manager.start(self._manager_address, credentials=self._credentials)
         await asyncio.gather(*map(self._spawn_shard, self._shard_ids))

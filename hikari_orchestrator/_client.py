@@ -144,7 +144,7 @@ class Client:
 
     async def acquire_shard(self, shard: hikari.api.GatewayShard, /) -> None:
         live_attrs = self._get_live()
-        old_state = await live_attrs.orchestrator.GetState(_protos.ShardId(shard.id))
+        old_state = await live_attrs.orchestrator.GetState(_protos.ShardId(shard_id=shard.id))
 
         if old_state.session_id and old_state.seq:
             ...  # TODO: try to reconnect?

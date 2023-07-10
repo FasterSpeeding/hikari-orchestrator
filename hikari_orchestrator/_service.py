@@ -119,9 +119,8 @@ def _spawn_child(
     token: str,
     shard_count: int,
     shard_ids: collections.Collection[int],
-    /,
-    *,
-    credentials: grpc.ChannelCredentials,
+    callback: collections.Callable[[hikari.GatewayBotAware], None] | None,
+    # credentials: grpc.ChannelCredentials | None,  # TODO: Can't be pickled
     gateway_url: str,
     intents: hikari.Intents | int,
 ) -> None:
@@ -130,10 +129,13 @@ def _spawn_child(
         token,
         shard_count,
         shard_ids,
-        credentials=credentials,
+        credentials=grpc.local_channel_credentials(),
         gateway_url=gateway_url,
         intents=intents,
     )
+    if callback:
+        callback(bot)
+
     bot.run()
 
 
@@ -141,12 +143,15 @@ async def spawn_subprocesses(
     token: str,
     /,
     *,
+    callback: collections.Callable[[hikari.GatewayBotAware], None] | None = None,
     shard_count: int | None = None,
     shard_ids: collections.Collection[int] | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
     subprocess_count: int = os.cpu_count() or 1,
-    port: int = 50551,
 ) -> None:
+    if shard_ids and not shard_count:
+        raise ValueError("Cannot pass 'shard_ids' without 'shard_count'")
+
     rest_app = hikari.RESTApp()
     await rest_app.start()
 
@@ -158,23 +163,47 @@ async def spawn_subprocesses(
 
     server = grpc.aio.server()
     _protos.add_OrchestratorServicer_to_server(orchestrator, server)
-    server.add_secure_port(f"localhost:{port}", grpc.local_server_credentials())
+    port = server.add_secure_port("[::]:0", grpc.local_server_credentials())
     await server.start()
 
     shard_ids = list(shard_ids) if shard_ids else range(shard_count)
 
     executor = concurrent.futures.ProcessPoolExecutor()
     chunk_size = math.ceil(len(shard_ids) / subprocess_count)
+    loop = asyncio.get_running_loop()
     for index in range(0, len(shard_ids), subprocess_count):
-        executor.submit(
+        loop.run_in_executor(
+            executor,
             _spawn_child,
             f"localhost:{port}",
             token,
             shard_count,
             shard_ids[index : index + chunk_size],
-            credentials=grpc.local_channel_credentials(),
-            gateway_url=gateway_info.url,
-            intents=intents,
+            callback,
+            gateway_info.url,
+            intents,
         )
 
     await server.wait_for_termination()
+
+
+def run_subprocesses(
+    token: str,
+    /,
+    *,
+    callback: collections.Callable[[hikari.GatewayBotAware], None] | None = None,
+    shard_count: int | None = None,
+    shard_ids: collections.Collection[int] | None = None,
+    intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
+    subprocess_count: int = os.cpu_count() or 1,
+) -> None:
+    asyncio.run(
+        spawn_subprocesses(
+            token,
+            callback=callback,
+            shard_count=shard_count,
+            shard_ids=shard_ids,
+            intents=intents,
+            subprocess_count=subprocess_count,
+        )
+    )
