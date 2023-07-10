@@ -114,7 +114,7 @@ skip = ["hikari_orchestrator/_protos"]
 
 [tool.mypy]
 # some good strict settings
-python_version = 3.10
+python_version = "3.10"
 strict = true
 warn_unreachable = true
 
