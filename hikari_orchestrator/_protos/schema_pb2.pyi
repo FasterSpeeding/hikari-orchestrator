@@ -9,10 +9,11 @@ DESCRIPTOR: _descriptor.FileDescriptor
 class InstructionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
     DISCONNECT: _ClassVar[InstructionType]
+    GATEWAY_PAYLOAD: _ClassVar[InstructionType]
+    CONNECT: _ClassVar[InstructionType]
 
 class ShardState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = []
-    NOT_STARTED: _ClassVar[ShardState]
     STARTING: _ClassVar[ShardState]
     STARTED: _ClassVar[ShardState]
     STOPPED: _ClassVar[ShardState]
@@ -22,7 +23,8 @@ class StatusType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FAILED: _ClassVar[StatusType]
     SUCCESS: _ClassVar[StatusType]
 DISCONNECT: InstructionType
-NOT_STARTED: ShardState
+GATEWAY_PAYLOAD: InstructionType
+CONNECT: InstructionType
 STARTING: ShardState
 STARTED: ShardState
 STOPPED: ShardState
@@ -30,10 +32,14 @@ FAILED: StatusType
 SUCCESS: StatusType
 
 class Instruction(_message.Message):
-    __slots__ = ["type"]
+    __slots__ = ["type", "json", "shard_id"]
     TYPE_FIELD_NUMBER: _ClassVar[int]
+    JSON_FIELD_NUMBER: _ClassVar[int]
+    SHARD_ID_FIELD_NUMBER: _ClassVar[int]
     type: InstructionType
-    def __init__(self, type: _Optional[_Union[InstructionType, str]] = ...) -> None: ...
+    json: str
+    shard_id: int
+    def __init__(self, type: _Optional[_Union[InstructionType, str]] = ..., json: _Optional[str] = ..., shard_id: _Optional[int] = ...) -> None: ...
 
 class ShardId(_message.Message):
     __slots__ = ["shard_id"]
@@ -64,3 +70,15 @@ class DisconnectResult(_message.Message):
     status: StatusType
     state: Shard
     def __init__(self, status: _Optional[_Union[StatusType, str]] = ..., state: _Optional[_Union[Shard, _Mapping]] = ...) -> None: ...
+
+class GatewayPayload(_message.Message):
+    __slots__ = ["shard_id", "json"]
+    SHARD_ID_FIELD_NUMBER: _ClassVar[int]
+    JSON_FIELD_NUMBER: _ClassVar[int]
+    shard_id: int
+    json: str
+    def __init__(self, shard_id: _Optional[int] = ..., json: _Optional[str] = ...) -> None: ...
+
+class Empty(_message.Message):
+    __slots__ = []
+    def __init__(self) -> None: ...

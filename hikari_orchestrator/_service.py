@@ -72,22 +72,26 @@ class Orchestrator(_protos.OrchestratorServicer):
     async def Acquire(
         self, request_iterator: collections.AsyncIterator[_protos.Shard], context: grpc.ServicerContext
     ) -> collections.AsyncIterator[_protos.Instruction]:
-        shard_state = await anext(request_iterator)
-        stored = self._shards.get(shard_state.shard_id)
-        if not stored:
-            raise KeyError("Shard not known")
+        raise NotImplementedError
 
-        if stored.state.state is _protos.STARTED:
-            raise NotImplementedError("Cannot take over right now")
+    async def AcquireNext(
+        self, request_iterator: collections.AsyncIterator[_protos.Shard], context: grpc.ServicerContext
+    ) -> collections.AsyncIterator[_protos.Instruction]:
+        for shard in self._shards.values():
+            if shard.state.state is _protos.ShardState.STOPPED:
+                break
 
-        shard_state.last_seen.FromDatetime(_now())
-        stored.state = shard_state
-        state_event = asyncio.create_task(_handle_states(stored, request_iterator))
+        else:
+            yield _protos.Instruction(type=_protos.InstructionType.DISCONNECT)
+            return
+
+        shard.state.state = _protos.ShardState.STARTING
+        state_event = asyncio.create_task(_handle_states(shard, request_iterator))
 
         # TODO: work out scheduling
-        yield _protos.Instruction(type=_protos.InstructionType.CONNECT)
+        yield _protos.Instruction(type=_protos.InstructionType.CONNECT, shard_id=shard.state.shard_id)
 
-        queue = stored.queue = asyncio.Queue[_protos.Instruction]()
+        queue = shard.queue = asyncio.Queue[_protos.Instruction]()
         queue_wait = asyncio.create_task(queue.get())
 
         try:
@@ -101,8 +105,8 @@ class Orchestrator(_protos.OrchestratorServicer):
         finally:
             queue_wait.cancel()
             state_event.cancel()
-            stored.state.state = _protos.STOPPED
-            stored.queue = None
+            shard.state.state = _protos.STOPPED
+            shard.queue = None
 
     def Disconnect(self, request: _protos.ShardId, _: grpc.ServicerContext) -> _protos.DisconnectResult:
         shard = self._shards.get(request.shard_id)
@@ -123,8 +127,8 @@ class Orchestrator(_protos.OrchestratorServicer):
 def _spawn_child(
     manager_address: str,
     token: str,
-    shard_count: int,
-    shard_ids: collections.Collection[int],
+    global_shard_count: int,
+    local_shard_count: int,
     callback: collections.Callable[[hikari.GatewayBotAware], None] | None,
     # credentials: grpc.ChannelCredentials | None,  # TODO: Can't be pickled
     gateway_url: str,
@@ -133,8 +137,8 @@ def _spawn_child(
     bot = _bot.Bot(
         manager_address,
         token,
-        shard_count,
-        shard_ids,
+        global_shard_count,
+        local_shard_count,
         credentials=grpc.local_channel_credentials(),
         gateway_url=gateway_url,
         intents=intents,
@@ -151,40 +155,34 @@ async def spawn_subprocesses(
     *,
     callback: collections.Callable[[hikari.GatewayBotAware], None] | None = None,
     shard_count: int | None = None,
-    shard_ids: collections.Collection[int] | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
     subprocess_count: int = os.cpu_count() or 1,
 ) -> None:
-    if shard_ids and not shard_count:
-        raise ValueError("Cannot pass 'shard_ids' without 'shard_count'")
-
     rest_app = hikari.RESTApp()
     await rest_app.start()
 
     async with rest_app.acquire(token, hikari.TokenType.BOT) as acquire:
         gateway_info = await acquire.fetch_gateway_bot_info()
 
-    shard_count = shard_count or gateway_info.shard_count
-    orchestrator = Orchestrator(token, shard_count, session_start_limit=gateway_info.session_start_limit)
+    global_shard_count = shard_count or gateway_info.shard_count
+    local_shard_count = math.ceil(global_shard_count / subprocess_count)
+    orchestrator = Orchestrator(token, global_shard_count, session_start_limit=gateway_info.session_start_limit)
 
     server = grpc.aio.server()
     _protos.add_OrchestratorServicer_to_server(orchestrator, server)
     port = server.add_secure_port("[::]:0", grpc.local_server_credentials())
     await server.start()
 
-    shard_ids = list(shard_ids) if shard_ids else range(shard_count)
-
     executor = concurrent.futures.ProcessPoolExecutor()
-    chunk_size = math.ceil(len(shard_ids) / subprocess_count)
     loop = asyncio.get_running_loop()
-    for index in range(0, len(shard_ids), chunk_size):
+    for _ in range(subprocess_count):
         loop.run_in_executor(
             executor,
             _spawn_child,
             f"localhost:{port}",
             token,
-            shard_count,
-            shard_ids[index : index + chunk_size],
+            global_shard_count,
+            local_shard_count,
             callback,
             gateway_info.url,
             intents,
@@ -199,17 +197,11 @@ def run_subprocesses(
     *,
     callback: collections.Callable[[hikari.GatewayBotAware], None] | None = None,
     shard_count: int | None = None,
-    shard_ids: collections.Collection[int] | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
     subprocess_count: int = os.cpu_count() or 1,
 ) -> None:
     asyncio.run(
         spawn_subprocesses(
-            token,
-            callback=callback,
-            shard_count=shard_count,
-            shard_ids=shard_ids,
-            intents=intents,
-            subprocess_count=subprocess_count,
+            token, callback=callback, shard_count=shard_count, intents=intents, subprocess_count=subprocess_count
         )
     )

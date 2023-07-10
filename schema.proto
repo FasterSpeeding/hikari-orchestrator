@@ -4,16 +4,24 @@ import "google/protobuf/timestamp.proto";
 
 service Orchestrator {
     rpc Acquire (stream Shard) returns (stream Instruction) {}
+    rpc AcquireNext(stream Shard) returns (stream Instruction) {}
     rpc Disconnect (ShardId) returns (DisconnectResult) {}
     rpc GetState (ShardId) returns (Shard) {}
+    rpc SendPayload(GatewayPayload) returns (Empty) {}
 }
 
 enum InstructionType {
     DISCONNECT = 0;
+    GATEWAY_PAYLOAD = 1;
+    CONNECT = 2;
 }
 
 message Instruction {
     InstructionType type = 1;
+    optional string json = 2;
+    optional int64 shard_id = 3;
+    // optional int64 seq = 4
+    // optional string session_id = 5;
 }
 
 message ShardId {
@@ -21,10 +29,9 @@ message ShardId {
 }
 
 enum ShardState {
-    NOT_STARTED = 0;
-    STARTING = 1;
-    STARTED = 2;
-    STOPPED = 3;
+    STARTING = 0;
+    STARTED = 1;
+    STOPPED = 2;
 }
 
 // TODO: add gateway_url
@@ -46,3 +53,10 @@ message DisconnectResult {
     StatusType status = 1;
     optional Shard state = 2;
 }
+
+message GatewayPayload {
+    optional int64 shard_id = 1;
+    string json = 2;
+}
+
+message Empty {}

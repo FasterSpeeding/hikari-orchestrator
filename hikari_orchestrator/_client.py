@@ -34,6 +34,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import datetime
+import typing
 from collections import abc as collections
 
 import grpc.aio  # type: ignore
@@ -42,7 +43,9 @@ from google.protobuf import timestamp_pb2
 
 from . import _protos
 
-_StreamT = grpc.aio.StreamStreamCall[_protos.Shard, _protos.Instruction]
+if typing.TYPE_CHECKING:
+    _ShardT = typing.TypeVar("_ShardT", bound=hikari.api.GatewayShard)
+    _StreamT = grpc.aio.StreamStreamCall[_protos.Shard, _protos.Instruction]
 
 
 def _now() -> timestamp_pb2.Timestamp:
@@ -143,19 +146,27 @@ class Client:
         await attributes.channel.close()
 
     async def acquire_shard(self, shard: hikari.api.GatewayShard, /) -> None:
+        raise NotImplementedError
+
+    async def recommended_shard(self, make_shard: collections.Callable[[int], _ShardT], /) -> _ShardT:
         live_attrs = self._get_live()
-        old_state = await live_attrs.orchestrator.GetState(_protos.ShardId(shard_id=shard.id))
+        stream = live_attrs.orchestrator.AcquireNext()
 
-        if old_state.session_id and old_state.seq:
-            ...  # TODO: try to reconnect?
+        instruction = await anext(aiter(stream))
 
-        stream = live_attrs.orchestrator.Acquire()
-        state = _protos.Shard(state=_protos.ShardState.STARTING, last_seen=_now())
-        live_attrs.shards[shard.id] = tracked_shard = _TrackedShard(live_attrs, shard, stream)
+        if instruction.type is _protos.DISCONNECT:
+            raise RuntimeError("Failed to connect")
+
+        if (
+            instruction.type is not _protos.InstructionType.CONNECT
+            or instruction.shard_id is None  # type: ignore[reportUnnecessaryComparison]
+        ):
+            raise NotImplementedError(instruction.type)
+
+        shard = make_shard(instruction.shard_id)
+        live_attrs.shards[instruction.shard_id] = tracked_shard = _TrackedShard(live_attrs, shard, stream)
 
         try:
-            await stream.write(state)
-            await anext(aiter(stream))  # Should always be CONNECT right now
             await shard.start()
 
             tracked_shard.instructions_task = asyncio.create_task(_handle_instructions(tracked_shard))
@@ -168,8 +179,7 @@ class Client:
             traceback.print_exc()
             raise RuntimeError("Can't pickle error") from None
 
-    async def recommend_shard(self, make_shard: collections.Callable[[int], hikari.api.GatewayShard], /) -> None:
-        ...
+        return shard
 
     async def close_shard(self, shard_id: int, /) -> None:
         await self._get_live().shards[shard_id].disconnect()

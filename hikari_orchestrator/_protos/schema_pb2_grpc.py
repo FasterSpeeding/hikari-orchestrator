@@ -19,6 +19,11 @@ class OrchestratorStub(object):
                 request_serializer=schema__pb2.Shard.SerializeToString,
                 response_deserializer=schema__pb2.Instruction.FromString,
                 )
+        self.AcquireNext = channel.stream_stream(
+                '/Orchestrator/AcquireNext',
+                request_serializer=schema__pb2.Shard.SerializeToString,
+                response_deserializer=schema__pb2.Instruction.FromString,
+                )
         self.Disconnect = channel.unary_unary(
                 '/Orchestrator/Disconnect',
                 request_serializer=schema__pb2.ShardId.SerializeToString,
@@ -29,12 +34,23 @@ class OrchestratorStub(object):
                 request_serializer=schema__pb2.ShardId.SerializeToString,
                 response_deserializer=schema__pb2.Shard.FromString,
                 )
+        self.SendPayload = channel.unary_unary(
+                '/Orchestrator/SendPayload',
+                request_serializer=schema__pb2.GatewayPayload.SerializeToString,
+                response_deserializer=schema__pb2.Empty.FromString,
+                )
 
 
 class OrchestratorServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Acquire(self, request_iterator, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AcquireNext(self, request_iterator, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -52,11 +68,22 @@ class OrchestratorServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SendPayload(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_OrchestratorServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Acquire': grpc.stream_stream_rpc_method_handler(
                     servicer.Acquire,
+                    request_deserializer=schema__pb2.Shard.FromString,
+                    response_serializer=schema__pb2.Instruction.SerializeToString,
+            ),
+            'AcquireNext': grpc.stream_stream_rpc_method_handler(
+                    servicer.AcquireNext,
                     request_deserializer=schema__pb2.Shard.FromString,
                     response_serializer=schema__pb2.Instruction.SerializeToString,
             ),
@@ -69,6 +96,11 @@ def add_OrchestratorServicer_to_server(servicer, server):
                     servicer.GetState,
                     request_deserializer=schema__pb2.ShardId.FromString,
                     response_serializer=schema__pb2.Shard.SerializeToString,
+            ),
+            'SendPayload': grpc.unary_unary_rpc_method_handler(
+                    servicer.SendPayload,
+                    request_deserializer=schema__pb2.GatewayPayload.FromString,
+                    response_serializer=schema__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -92,6 +124,23 @@ class Orchestrator(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.stream_stream(request_iterator, target, '/Orchestrator/Acquire',
+            schema__pb2.Shard.SerializeToString,
+            schema__pb2.Instruction.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def AcquireNext(request_iterator,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.stream_stream(request_iterator, target, '/Orchestrator/AcquireNext',
             schema__pb2.Shard.SerializeToString,
             schema__pb2.Instruction.FromString,
             options, channel_credentials,
@@ -128,5 +177,22 @@ class Orchestrator(object):
         return grpc.experimental.unary_unary(request, target, '/Orchestrator/GetState',
             schema__pb2.ShardId.SerializeToString,
             schema__pb2.Shard.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def SendPayload(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/Orchestrator/SendPayload',
+            schema__pb2.GatewayPayload.SerializeToString,
+            schema__pb2.Empty.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

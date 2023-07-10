@@ -57,15 +57,15 @@ class Bot(hikari.GatewayBotAware):
         "_event_factory",
         "_event_manager",
         "_gateway_url",
+        "_global_shard_count",
         "_http_settings",
         "_intents",
+        "_local_shard_count",
         "_manager",
         "_manager_address",
         "_proxy_settings",
         "_rest",
         "_shards",
-        "_shard_count",
-        "_shard_ids",
         "_token",
         "_voice",
     )
@@ -74,8 +74,8 @@ class Bot(hikari.GatewayBotAware):
         self,
         manager_address: str,
         token: str,
-        shard_count: int,
-        shard_ids: collections.Collection[int],
+        global_shard_count: int,
+        local_shard_count: int,
         /,
         *,
         cache_settings: hikari.impl.CacheSettings | None = None,
@@ -96,7 +96,9 @@ class Bot(hikari.GatewayBotAware):
         self._event_factory = hikari.impl.event_factory.EventFactoryImpl(self)
         self._event_manager = hikari.impl.EventManagerImpl(self._entity_factory, self._event_factory, self._intents)
         self._gateway_url = gateway_url
+        self._global_shard_count = global_shard_count
         self._http_settings = http_settings or hikari.impl.HTTPSettings()
+        self._local_shard_count = local_shard_count
         self._manager_address = manager_address
         self._proxy_settings = proxy_settings or hikari.impl.ProxySettings()
         self._rest = hikari.impl.RESTClientImpl(
@@ -111,8 +113,6 @@ class Bot(hikari.GatewayBotAware):
         )
         self._shards: dict[int, hikari.impl.GatewayShardImpl] = {}
         self._voice = hikari.impl.VoiceComponentImpl(self)
-        self._shard_count = shard_count
-        self._shard_ids = shard_ids
         self._token = token
         self._manager = _client.Client()
 
@@ -171,11 +171,11 @@ class Bot(hikari.GatewayBotAware):
 
     @property
     def shards(self) -> collections.Mapping[int, hikari.api.GatewayShard]:
-        raise NotImplementedError
+        return self._shards
 
     @property
     def shard_count(self) -> int:
-        return self._shard_count
+        return self._global_shard_count
 
     def get_me(self) -> hikari.OwnUser | None:
         raise NotImplementedError
@@ -233,17 +233,21 @@ class Bot(hikari.GatewayBotAware):
         self._close_event = None
         await self._event_manager.dispatch(self._event_factory.deserialize_stopped_event())
 
-    async def _spawn_shard(self, shard_id: int, /) -> None:
-        shard = hikari.impl.GatewayShardImpl(
+    def _make_shard(self, shard_id: int, /) -> hikari.impl.GatewayShardImpl:
+        return hikari.impl.GatewayShardImpl(
             event_factory=self._event_factory,
             event_manager=self._event_manager,
             http_settings=self._http_settings,
             intents=self._intents,
             proxy_settings=self._proxy_settings,
+            shard_id=shard_id,
             token=self._token,
+            shard_count=self._global_shard_count,
             url=self._gateway_url,
         )
-        await self._manager.acquire_shard(shard)
+
+    async def _spawn_shard(self) -> None:
+        shard = await self._manager.recommended_shard(self._make_shard)
         self._shards[shard.id] = shard
 
     async def start(self) -> None:
@@ -253,4 +257,5 @@ class Bot(hikari.GatewayBotAware):
         self._close_event = asyncio.Event()
         await self._manager.start(self._manager_address, credentials=self._credentials)
         await self._event_manager.dispatch(self._event_factory.deserialize_starting_event())
+        await asyncio.gather(*(self._spawn_shard() for _ in range(self._local_shard_count)))
         await self._event_manager.dispatch(self._event_factory.deserialize_started_event())
