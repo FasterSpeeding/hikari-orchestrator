@@ -149,6 +149,58 @@ def _spawn_child(
     bot.run()
 
 
+async def _fetch_bot_info(token: str, /) -> hikari.GatewayBotInfo:
+    rest_app = hikari.RESTApp()
+    await rest_app.start()
+
+    async with rest_app.acquire(token, hikari.TokenType.BOT) as acquire:
+        return await acquire.fetch_gateway_bot_info()
+
+
+async def _spawn_server(
+    token: str,
+    address: str,
+    /,
+    *,
+    credentials: grpc.ServerCredentials | None = None,
+    gateway_info: hikari.GatewayBotInfo | None = None,
+    shard_count: int | None = None,
+) -> tuple[int, grpc.aio.Server]:
+    gateway_info = gateway_info or await _fetch_bot_info(token)
+    orchestrator = Orchestrator(
+        token, shard_count or gateway_info.shard_count, session_start_limit=gateway_info.session_start_limit
+    )
+
+    server = grpc.aio.server()
+    _protos.add_OrchestratorServicer_to_server(orchestrator, server)
+
+    if credentials:
+        port = server.add_secure_port(address, credentials)
+
+    else:
+        port = server.add_insecure_port(address)
+
+    await server.start()
+    return port, server
+
+
+def run_server(
+    token: str,
+    address: str,
+    /,
+    *,
+    credentials: grpc.ServerCredentials | None = None,
+    gateway_info: hikari.GatewayBotInfo | None = None,
+    shard_count: int | None = None,
+) -> None:
+    loop = asyncio.new_event_loop()
+    _, server = loop.run_until_complete(
+        _spawn_server(token, address, credentials=credentials, gateway_info=gateway_info, shard_count=shard_count)
+    )
+    # TODO: log the address
+    loop.run_until_complete(server.wait_for_termination())
+
+
 async def spawn_subprocesses(
     token: str,
     /,
@@ -158,21 +210,13 @@ async def spawn_subprocesses(
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
     subprocess_count: int = os.cpu_count() or 1,
 ) -> None:
-    rest_app = hikari.RESTApp()
-    await rest_app.start()
-
-    async with rest_app.acquire(token, hikari.TokenType.BOT) as acquire:
-        gateway_info = await acquire.fetch_gateway_bot_info()
-
+    gateway_info = await _fetch_bot_info(token)
     global_shard_count = shard_count or gateway_info.shard_count
     local_shard_count = math.ceil(global_shard_count / subprocess_count)
-    orchestrator = Orchestrator(token, global_shard_count, session_start_limit=gateway_info.session_start_limit)
 
-    server = grpc.aio.server()
-    _protos.add_OrchestratorServicer_to_server(orchestrator, server)
-    port = server.add_secure_port("[::]:0", grpc.local_server_credentials())
-    await server.start()
-
+    port, server = await _spawn_server(
+        token, "[::]:0", credentials=grpc.local_server_credentials(), gateway_info=gateway_info
+    )
     executor = concurrent.futures.ProcessPoolExecutor()
     loop = asyncio.get_running_loop()
     for _ in range(subprocess_count):

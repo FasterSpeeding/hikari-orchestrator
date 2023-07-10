@@ -31,8 +31,8 @@
 """Temp"""
 from __future__ import annotations
 
-__all__ = ["Orchestrator", "run_subprocesses", "spawn_subprocesses"]
+__all__ = ["run_server", "run_subprocesses", "spawn_subprocesses"]
 
-from ._service import Orchestrator
+from ._service import run_server
 from ._service import run_subprocesses
 from ._service import spawn_subprocesses
