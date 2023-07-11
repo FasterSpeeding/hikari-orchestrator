@@ -45,7 +45,7 @@ from . import _client
 
 
 class _ShardProxy(hikari.api.GatewayShard):
-    __slots__ = ("_shard_count", "_id", "_intents")
+    __slots__ = ("_shard_count", "_id", "_intents", "_manager")
 
     def __init__(self, manager: _client.Client, shard_id: int, intents: hikari.Intents, shard_count: int, /) -> None:
         self._shard_count = shard_count

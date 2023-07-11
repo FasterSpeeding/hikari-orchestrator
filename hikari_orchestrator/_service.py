@@ -56,18 +56,31 @@ class _TrackedShard:
         self.queue: asyncio.Queue[_protos.Instruction] | None = None
         self.state = _protos.Shard(state=_protos.STOPPED, shard_id=shard_id)
 
+    def update_state(self, state: _protos.Shard, /) -> None:
+        state.last_seen.FromDatetime(_now())
+        self.state = state
+
 
 async def _handle_states(stored: _TrackedShard, request_iterator: collections.AsyncIterator[_protos.Shard]) -> None:
     async for shard_state in request_iterator:
-        shard_state.last_seen.FromDatetime(_now())
-        stored.state = shard_state
+        stored.update_state(shard_state)
+
+
+async def _release_after_5(semaphore: asyncio.BoundedSemaphore) -> None:
+    await asyncio.sleep(5)
+    semaphore.release()
 
 
 class Orchestrator(_protos.OrchestratorServicer):
     def __init__(self, token: str, shard_count: int, /, *, session_start_limit: hikari.SessionStartLimit) -> None:
-        self._session_start_limit = session_start_limit
+        self._buckets = {bucket: asyncio.BoundedSemaphore() for bucket in range(session_start_limit.max_concurrency)}
         self._shards: dict[int, _TrackedShard] = {shard_id: _TrackedShard(shard_id) for shard_id in range(shard_count)}
+        self._tasks: list[asyncio.Task[None]] = []
         self._token = token
+
+    def _store_task(self, task: asyncio.Task[None], /) -> None:
+        task.add_done_callback(self._tasks.remove)
+        self._tasks.append(task)
 
     def Acquire(
         self, request_iterator: collections.AsyncIterator[_protos.Shard], context: grpc.ServicerContext
@@ -86,11 +99,16 @@ class Orchestrator(_protos.OrchestratorServicer):
             return
 
         shard.state.state = _protos.ShardState.STARTING
-        state_event = asyncio.create_task(_handle_states(shard, request_iterator))
+        semaphore = self._buckets[shard.state.shard_id % len(self._buckets)]
+        await semaphore.acquire()
 
-        # TODO: work out scheduling
         yield _protos.Instruction(type=_protos.InstructionType.CONNECT, shard_id=shard.state.shard_id)
 
+        state = await anext(aiter(request_iterator))
+        shard.update_state(state)
+        self._tasks.append(asyncio.create_task(_release_after_5(semaphore)))
+
+        state_event = asyncio.create_task(_handle_states(shard, request_iterator))
         queue = shard.queue = asyncio.Queue[_protos.Instruction]()
         queue_wait = asyncio.create_task(queue.get())
 
@@ -153,8 +171,12 @@ async def _fetch_bot_info(token: str, /) -> hikari.GatewayBotInfo:
     rest_app = hikari.RESTApp()
     await rest_app.start()
 
-    async with rest_app.acquire(token, hikari.TokenType.BOT) as acquire:
-        return await acquire.fetch_gateway_bot_info()
+    try:
+        async with rest_app.acquire(token, hikari.TokenType.BOT) as acquire:
+            return await acquire.fetch_gateway_bot_info()
+
+    finally:
+        await rest_app.close()
 
 
 async def _spawn_server(
@@ -215,7 +237,11 @@ async def spawn_subprocesses(
     local_shard_count = math.ceil(global_shard_count / subprocess_count)
 
     port, server = await _spawn_server(
-        token, "[::]:0", credentials=grpc.local_server_credentials(), gateway_info=gateway_info
+        token,
+        "[::]:0",
+        credentials=grpc.local_server_credentials(),
+        gateway_info=gateway_info,
+        shard_count=global_shard_count,
     )
     executor = concurrent.futures.ProcessPoolExecutor()
     loop = asyncio.get_running_loop()
