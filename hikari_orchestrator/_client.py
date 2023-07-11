@@ -172,6 +172,9 @@ class Client:
 
         raise RuntimeError("Client not running")
 
+    async def get_all_states(self) -> collections.Sequence[_protos.Shard]:
+        return (await self._get_live().orchestrator.GetAllStates(_protos.Undefined())).shards
+
     async def start(self, target: str, /, *, credentials: grpc.ChannelCredentials | None = None) -> None:
         if self._attributes:
             raise RuntimeError("Already running")

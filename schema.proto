@@ -7,6 +7,7 @@ service Orchestrator {
     rpc AcquireNext(stream Shard) returns (stream Instruction) {}
     rpc Disconnect (ShardId) returns (DisconnectResult) {}
     rpc GetState (ShardId) returns (Shard) {}
+    rpc GetAllStates (Undefined) returns (AllShards) {}
     rpc SendPayload(GatewayPayload) returns (Undefined) {}
 }
 
@@ -81,6 +82,10 @@ message Shard {
     optional string session_id = 4;
     optional int64 seq = 5;
     int64 shard_id = 6;
+}
+
+message AllShards {
+    repeated Shard shards = 1;
 }
 
 enum StatusType {

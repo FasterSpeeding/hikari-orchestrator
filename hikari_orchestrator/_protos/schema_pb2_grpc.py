@@ -34,6 +34,11 @@ class OrchestratorStub(object):
             request_serializer=schema__pb2.ShardId.SerializeToString,
             response_deserializer=schema__pb2.Shard.FromString,
         )
+        self.GetAllStates = channel.unary_unary(
+            "/Orchestrator/GetAllStates",
+            request_serializer=schema__pb2.Undefined.SerializeToString,
+            response_deserializer=schema__pb2.AllShards.FromString,
+        )
         self.SendPayload = channel.unary_unary(
             "/Orchestrator/SendPayload",
             request_serializer=schema__pb2.GatewayPayload.SerializeToString,
@@ -68,6 +73,12 @@ class OrchestratorServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
+    def GetAllStates(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
     def SendPayload(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -96,6 +107,11 @@ def add_OrchestratorServicer_to_server(servicer, server):
             servicer.GetState,
             request_deserializer=schema__pb2.ShardId.FromString,
             response_serializer=schema__pb2.Shard.SerializeToString,
+        ),
+        "GetAllStates": grpc.unary_unary_rpc_method_handler(
+            servicer.GetAllStates,
+            request_deserializer=schema__pb2.Undefined.FromString,
+            response_serializer=schema__pb2.AllShards.SerializeToString,
         ),
         "SendPayload": grpc.unary_unary_rpc_method_handler(
             servicer.SendPayload,
@@ -217,6 +233,35 @@ class Orchestrator(object):
             "/Orchestrator/GetState",
             schema__pb2.ShardId.SerializeToString,
             schema__pb2.Shard.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def GetAllStates(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/Orchestrator/GetAllStates",
+            schema__pb2.Undefined.SerializeToString,
+            schema__pb2.AllShards.FromString,
             options,
             channel_credentials,
             insecure,

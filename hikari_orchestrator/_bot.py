@@ -34,6 +34,7 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import datetime
+import math
 from collections import abc as collections
 
 import grpc  # type: ignore
@@ -42,20 +43,23 @@ import hikari.impl.event_factory  # TODO: export at hikari.impl
 import hikari.urls
 
 from . import _client
+from . import _protos
 
 
 class _ShardProxy(hikari.api.GatewayShard):
-    __slots__ = ("_shard_count", "_id", "_intents", "_manager")
+    __slots__ = ("_close_event", "_shard_count", "_id", "_intents", "_manager", "_state")
 
     def __init__(self, manager: _client.Client, shard_id: int, intents: hikari.Intents, shard_count: int, /) -> None:
+        self._close_event = asyncio.Event()
         self._shard_count = shard_count
         self._id = shard_id
         self._intents = intents
         self._manager = manager
+        self._state: _protos.Shard | None = None
 
     @property
     def heartbeat_latency(self) -> float:
-        raise NotImplementedError
+        return self._state.latency if self._state else float("nan")
 
     @property
     def id(self) -> int:
@@ -67,11 +71,11 @@ class _ShardProxy(hikari.api.GatewayShard):
 
     @property
     def is_alive(self) -> bool:
-        return True
+        return bool(self._state and self._state.state is not _protos.ShardState.STOPPED)
 
     @property
     def is_connected(self) -> bool:
-        return True
+        return bool(self._state and self._state.state is _protos.ShardState.STARTED)
 
     @property
     def shard_count(self) -> int:
@@ -81,13 +85,16 @@ class _ShardProxy(hikari.api.GatewayShard):
         raise NotImplementedError
 
     async def close(self) -> None:
-        raise NotImplementedError
+        raise RuntimeError("Cannot close proxied shard")
 
     async def join(self) -> None:
-        raise NotImplementedError
+        if self._state is _protos.ShardState.STOPPED:
+            raise hikari.ComponentStateConflictError("Shard isn't running")
+
+        await self._close_event.wait()
 
     async def start(self) -> None:
-        raise NotImplementedError
+        raise RuntimeError("Cannot start proxied shard")
 
     async def update_presence(
         self,
@@ -123,6 +130,14 @@ class _ShardProxy(hikari.api.GatewayShard):
             guild, include_presences=include_presences, query=query, limit=limit, users=users, nonce=nonce
         )
 
+    def update_state(self, state: _protos.Shard, /) -> None:
+        self._state = state
+        if self._state.state is not _protos.ShardState.STOPPED and state.state is _protos.ShardState.STOPPED:
+            self._close_event.set()
+
+        else:
+            self._close_event.clear()
+
 
 class Bot(hikari.GatewayBotAware):
     __slots__ = (
@@ -133,6 +148,7 @@ class Bot(hikari.GatewayBotAware):
         "_entity_factory",
         "_event_factory",
         "_event_manager",
+        "_fetch_task",
         "_gateway_url",
         "_global_shard_count",
         "_http_settings",
@@ -140,6 +156,7 @@ class Bot(hikari.GatewayBotAware):
         "_local_shard_count",
         "_manager",
         "_manager_address",
+        "_other_shards",
         "_proxy_settings",
         "_rest",
         "_shards",
@@ -172,11 +189,13 @@ class Bot(hikari.GatewayBotAware):
         # TODO: export at hikari.impl
         self._event_factory = hikari.impl.event_factory.EventFactoryImpl(self)
         self._event_manager = hikari.impl.EventManagerImpl(self._entity_factory, self._event_factory, self._intents)
+        self._fetch_task: asyncio.Task[None] | None = None
         self._gateway_url = gateway_url
         self._global_shard_count = global_shard_count
         self._http_settings = http_settings or hikari.impl.HTTPSettings()
         self._local_shard_count = local_shard_count
         self._manager_address = manager_address
+        self._other_shards: dict[int, _protos.Shard] = {}
         self._proxy_settings = proxy_settings or hikari.impl.ProxySettings()
         self._rest = hikari.impl.RESTClientImpl(
             cache=self._cache,
@@ -235,12 +254,14 @@ class Bot(hikari.GatewayBotAware):
 
     @property
     def heartbeat_latencies(self) -> collections.Mapping[int, float]:
-        return {}
-        # return self._heartbeat_latencies
+        return {shard.id: shard.heartbeat_latency for shard in self._shards.values()}
 
     @property
     def heartbeat_latency(self) -> float:
-        return super().heartbeat_latency
+        latencies = [
+            shard.heartbeat_latency for shard in self._shards.values() if not math.isnan(shard.heartbeat_latency)
+        ]
+        return sum(latencies) / len(latencies) if latencies else float("nan")
 
     @property
     def is_alive(self) -> bool:
@@ -302,7 +323,7 @@ class Bot(hikari.GatewayBotAware):
 
     async def join(self) -> None:
         if not self._close_event:
-            raise RuntimeError("Not running")
+            raise hikari.ComponentStateConflictError("Not running")
 
         await self._close_event.wait()
 
@@ -313,7 +334,7 @@ class Bot(hikari.GatewayBotAware):
 
     async def close(self) -> None:
         if not self._close_event:
-            raise RuntimeError("Not running")
+            raise hikari.ComponentStateConflictError("Not running")
 
         await self._event_manager.dispatch(self._event_factory.deserialize_stopping_event())
         await self._manager.stop()
@@ -339,18 +360,29 @@ class Bot(hikari.GatewayBotAware):
         shard = await self._manager.recommended_shard(self._make_shard)
         self._shards[shard.id] = shard
 
+    async def _fetch_other_states(self, proxied_shards: dict[int, _ShardProxy], /) -> None:
+        while True:
+            await asyncio.sleep(10)
+            for state in await self._manager.get_all_states():
+                if shard := proxied_shards.get(state.shard_id):
+                    shard.update_state(state)
+
     async def start(self) -> None:
         if self._close_event:
-            raise RuntimeError("Already running")
+            raise hikari.ComponentStateConflictError("Already running")
 
         self._close_event = asyncio.Event()
         await self._manager.start(self._manager_address, credentials=self._credentials)
 
+        proxied_shards: dict[int, _ShardProxy] = {}
         local_shards = range(self._local_shard_count)
         for shard_id in range(self._global_shard_count):
             if shard_id not in local_shards:
-                self._shards[shard_id] = _ShardProxy(self._manager, shard_id, self._intents, self._global_shard_count)
+                self._shards[shard_id] = proxied_shards[shard_id] = _ShardProxy(
+                    self._manager, shard_id, self._intents, self._global_shard_count
+                )
 
+        self._fetch_task = asyncio.create_task(self._fetch_other_states(proxied_shards))
         await self._event_manager.dispatch(self._event_factory.deserialize_starting_event())
         await asyncio.gather(*(self._spawn_shard() for _ in local_shards))
         await self._event_manager.dispatch(self._event_factory.deserialize_started_event())

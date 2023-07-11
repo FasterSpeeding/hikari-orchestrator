@@ -165,6 +165,12 @@ class Shard(_message.Message):
         shard_id: _Optional[int] = ...,
     ) -> None: ...
 
+class AllShards(_message.Message):
+    __slots__ = ["shards"]
+    SHARDS_FIELD_NUMBER: _ClassVar[int]
+    shards: _containers.RepeatedCompositeFieldContainer[Shard]
+    def __init__(self, shards: _Optional[_Iterable[_Union[Shard, _Mapping]]] = ...) -> None: ...
+
 class DisconnectResult(_message.Message):
     __slots__ = ["status", "state"]
     STATUS_FIELD_NUMBER: _ClassVar[int]

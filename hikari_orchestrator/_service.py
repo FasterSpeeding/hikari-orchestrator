@@ -138,6 +138,9 @@ class Orchestrator(_protos.OrchestratorServicer):
     def GetState(self, request: _protos.ShardId, _: grpc.ServicerContext) -> _protos.Shard:
         return self._shards[request.shard_id].state
 
+    async def GetAllStates(self, _: _protos.Undefined, __: grpc.ServicerContext) -> _protos.AllShards:
+        return _protos.AllShards(shard.state for shard in self._shards.values())
+
     async def SendPayload(self, request: _protos.GatewayPayload, context: grpc.ServicerContext) -> _protos.Undefined:
         return _protos.Undefined()
 
