@@ -38,11 +38,10 @@ Repository = "https://github.com/FasterSpeeding/hikari_orchestrator"
 name = "hikari_orchestrator"
 
 [tool.black]
-extend-exclude = "^\\/hikari_orchestrator\\/_protos\\/.*$"
 include = ".*pyi?$"
 line-length = 120
 skip-magic-trailing-comma = true
-target-version = ["py39"]
+target-version = ["py310"]
 
 [tool.codespell]
 ignore-regex = "TimeSchedule|Nd"
@@ -110,7 +109,6 @@ per-file-ignores = [
 [tool.isort]
 profile = "black"
 force_single_line = true
-skip = ["hikari_orchestrator/_protos"]
 
 [tool.mypy]
 # some good strict settings

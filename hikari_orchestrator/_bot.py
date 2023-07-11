@@ -38,13 +38,90 @@ from collections import abc as collections
 
 import grpc  # type: ignore
 import hikari
-import hikari.impl.event_factory
+import hikari.impl.event_factory  # TODO: export at hikari.impl
 import hikari.urls
 
 from . import _client
 
-# class _RpcShard:
-#     __slots__ = ()
+
+class _ShardProxy(hikari.api.GatewayShard):
+    __slots__ = ("_shard_count", "_id", "_intents")
+
+    def __init__(self, manager: _client.Client, shard_id: int, intents: hikari.Intents, shard_count: int, /) -> None:
+        self._shard_count = shard_count
+        self._id = shard_id
+        self._intents = intents
+        self._manager = manager
+
+    @property
+    def heartbeat_latency(self) -> float:
+        raise NotImplementedError
+
+    @property
+    def id(self) -> int:
+        return self._id
+
+    @property
+    def intents(self) -> hikari.Intents:
+        return self._intents
+
+    @property
+    def is_alive(self) -> bool:
+        return True
+
+    @property
+    def is_connected(self) -> bool:
+        return True
+
+    @property
+    def shard_count(self) -> int:
+        return self._shard_count
+
+    def get_user_id(self) -> hikari.Snowflake:
+        raise NotImplementedError
+
+    async def close(self) -> None:
+        raise NotImplementedError
+
+    async def join(self) -> None:
+        raise NotImplementedError
+
+    async def start(self) -> None:
+        raise NotImplementedError
+
+    async def update_presence(
+        self,
+        *,
+        idle_since: hikari.UndefinedNoneOr[datetime.datetime] = hikari.UNDEFINED,
+        afk: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+        activity: hikari.UndefinedNoneOr[hikari.Activity] = hikari.UNDEFINED,
+        status: hikari.UndefinedOr[hikari.Status] = hikari.UNDEFINED,
+    ) -> None:
+        await self._manager.update_presence(idle_since=idle_since, afk=afk, activity=activity, status=status)
+
+    async def update_voice_state(
+        self,
+        guild: hikari.SnowflakeishOr[hikari.PartialGuild],
+        channel: hikari.SnowflakeishOr[hikari.GuildVoiceChannel] | None,
+        *,
+        self_mute: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+        self_deaf: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+    ) -> None:
+        await self._manager.update_voice_state(guild, channel, self_mute=self_mute, self_deaf=self_deaf)
+
+    async def request_guild_members(
+        self,
+        guild: hikari.SnowflakeishOr[hikari.PartialGuild],
+        *,
+        include_presences: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+        query: str = "",
+        limit: int = 0,
+        users: hikari.UndefinedOr[hikari.SnowflakeishSequence[hikari.User]] = hikari.UNDEFINED,
+        nonce: hikari.UndefinedOr[str] = hikari.UNDEFINED,
+    ) -> None:
+        await self._manager.request_guild_members(
+            guild, include_presences=include_presences, query=query, limit=limit, users=users, nonce=nonce
+        )
 
 
 class Bot(hikari.GatewayBotAware):
@@ -111,7 +188,7 @@ class Bot(hikari.GatewayBotAware):
             token=token,
             token_type=hikari.TokenType.BOT,
         )
-        self._shards: dict[int, hikari.impl.GatewayShardImpl] = {}
+        self._shards: dict[int, hikari.api.GatewayShard] = {}
         self._voice = hikari.impl.VoiceComponentImpl(self)
         self._token = token
         self._manager = _client.Client()
@@ -180,6 +257,10 @@ class Bot(hikari.GatewayBotAware):
     def get_me(self) -> hikari.OwnUser | None:
         raise NotImplementedError
 
+    def _get_shard(self, guild: hikari.SnowflakeishOr[hikari.PartialGuild]) -> hikari.api.GatewayShard:
+        guild = hikari.Snowflake(guild)
+        return self._shards[hikari.snowflakes.calculate_shard_id(self.shard_count, guild)]
+
     async def update_presence(
         self,
         *,
@@ -188,7 +269,12 @@ class Bot(hikari.GatewayBotAware):
         activity: hikari.UndefinedNoneOr[hikari.Activity] = hikari.UNDEFINED,
         afk: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
     ) -> None:
-        raise NotImplementedError
+        await asyncio.gather(
+            *(
+                shard.update_presence(idle_since=idle_since, afk=afk, activity=activity, status=status)
+                for shard in self._shards.values()
+            )
+        )
 
     async def update_voice_state(
         self,
@@ -198,7 +284,7 @@ class Bot(hikari.GatewayBotAware):
         self_mute: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
         self_deaf: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
     ) -> None:
-        raise NotImplementedError
+        await self._get_shard(guild).update_voice_state(guild, channel, self_mute=self_mute, self_deaf=self_deaf)
 
     async def request_guild_members(
         self,
@@ -210,7 +296,9 @@ class Bot(hikari.GatewayBotAware):
         users: hikari.UndefinedOr[hikari.SnowflakeishSequence[hikari.User]] = hikari.UNDEFINED,
         nonce: hikari.UndefinedOr[str] = hikari.UNDEFINED,
     ) -> None:
-        raise NotImplementedError
+        await self._get_shard(guild).request_guild_members(
+            guild, include_presences=include_presences, query=query, limit=limit, users=users, nonce=nonce
+        )
 
     async def join(self) -> None:
         if not self._close_event:
@@ -229,6 +317,7 @@ class Bot(hikari.GatewayBotAware):
 
         await self._event_manager.dispatch(self._event_factory.deserialize_stopping_event())
         await self._manager.stop()
+        self._shards = {}
         self._close_event.set()
         self._close_event = None
         await self._event_manager.dispatch(self._event_factory.deserialize_stopped_event())
@@ -256,6 +345,12 @@ class Bot(hikari.GatewayBotAware):
 
         self._close_event = asyncio.Event()
         await self._manager.start(self._manager_address, credentials=self._credentials)
+
+        local_shards = range(self._local_shard_count)
+        for shard_id in range(self._global_shard_count):
+            if shard_id not in local_shards:
+                self._shards[shard_id] = _ShardProxy(self._manager, shard_id, self._intents, self._global_shard_count)
+
         await self._event_manager.dispatch(self._event_factory.deserialize_starting_event())
-        await asyncio.gather(*(self._spawn_shard() for _ in range(self._local_shard_count)))
+        await asyncio.gather(*(self._spawn_shard() for _ in local_shards))
         await self._event_manager.dispatch(self._event_factory.deserialize_started_event())

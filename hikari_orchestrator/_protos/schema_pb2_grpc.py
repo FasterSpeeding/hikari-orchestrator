@@ -15,30 +15,30 @@ class OrchestratorStub(object):
             channel: A grpc.Channel.
         """
         self.Acquire = channel.stream_stream(
-                '/Orchestrator/Acquire',
-                request_serializer=schema__pb2.Shard.SerializeToString,
-                response_deserializer=schema__pb2.Instruction.FromString,
-                )
+            "/Orchestrator/Acquire",
+            request_serializer=schema__pb2.Shard.SerializeToString,
+            response_deserializer=schema__pb2.Instruction.FromString,
+        )
         self.AcquireNext = channel.stream_stream(
-                '/Orchestrator/AcquireNext',
-                request_serializer=schema__pb2.Shard.SerializeToString,
-                response_deserializer=schema__pb2.Instruction.FromString,
-                )
+            "/Orchestrator/AcquireNext",
+            request_serializer=schema__pb2.Shard.SerializeToString,
+            response_deserializer=schema__pb2.Instruction.FromString,
+        )
         self.Disconnect = channel.unary_unary(
-                '/Orchestrator/Disconnect',
-                request_serializer=schema__pb2.ShardId.SerializeToString,
-                response_deserializer=schema__pb2.DisconnectResult.FromString,
-                )
+            "/Orchestrator/Disconnect",
+            request_serializer=schema__pb2.ShardId.SerializeToString,
+            response_deserializer=schema__pb2.DisconnectResult.FromString,
+        )
         self.GetState = channel.unary_unary(
-                '/Orchestrator/GetState',
-                request_serializer=schema__pb2.ShardId.SerializeToString,
-                response_deserializer=schema__pb2.Shard.FromString,
-                )
+            "/Orchestrator/GetState",
+            request_serializer=schema__pb2.ShardId.SerializeToString,
+            response_deserializer=schema__pb2.Shard.FromString,
+        )
         self.SendPayload = channel.unary_unary(
-                '/Orchestrator/SendPayload',
-                request_serializer=schema__pb2.GatewayPayload.SerializeToString,
-                response_deserializer=schema__pb2.Empty.FromString,
-                )
+            "/Orchestrator/SendPayload",
+            request_serializer=schema__pb2.GatewayPayload.SerializeToString,
+            response_deserializer=schema__pb2.Undefined.FromString,
+        )
 
 
 class OrchestratorServicer(object):
@@ -47,152 +47,211 @@ class OrchestratorServicer(object):
     def Acquire(self, request_iterator, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def AcquireNext(self, request_iterator, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def Disconnect(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def GetState(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def SendPayload(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
 
 def add_OrchestratorServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Acquire': grpc.stream_stream_rpc_method_handler(
-                    servicer.Acquire,
-                    request_deserializer=schema__pb2.Shard.FromString,
-                    response_serializer=schema__pb2.Instruction.SerializeToString,
-            ),
-            'AcquireNext': grpc.stream_stream_rpc_method_handler(
-                    servicer.AcquireNext,
-                    request_deserializer=schema__pb2.Shard.FromString,
-                    response_serializer=schema__pb2.Instruction.SerializeToString,
-            ),
-            'Disconnect': grpc.unary_unary_rpc_method_handler(
-                    servicer.Disconnect,
-                    request_deserializer=schema__pb2.ShardId.FromString,
-                    response_serializer=schema__pb2.DisconnectResult.SerializeToString,
-            ),
-            'GetState': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetState,
-                    request_deserializer=schema__pb2.ShardId.FromString,
-                    response_serializer=schema__pb2.Shard.SerializeToString,
-            ),
-            'SendPayload': grpc.unary_unary_rpc_method_handler(
-                    servicer.SendPayload,
-                    request_deserializer=schema__pb2.GatewayPayload.FromString,
-                    response_serializer=schema__pb2.Empty.SerializeToString,
-            ),
+        "Acquire": grpc.stream_stream_rpc_method_handler(
+            servicer.Acquire,
+            request_deserializer=schema__pb2.Shard.FromString,
+            response_serializer=schema__pb2.Instruction.SerializeToString,
+        ),
+        "AcquireNext": grpc.stream_stream_rpc_method_handler(
+            servicer.AcquireNext,
+            request_deserializer=schema__pb2.Shard.FromString,
+            response_serializer=schema__pb2.Instruction.SerializeToString,
+        ),
+        "Disconnect": grpc.unary_unary_rpc_method_handler(
+            servicer.Disconnect,
+            request_deserializer=schema__pb2.ShardId.FromString,
+            response_serializer=schema__pb2.DisconnectResult.SerializeToString,
+        ),
+        "GetState": grpc.unary_unary_rpc_method_handler(
+            servicer.GetState,
+            request_deserializer=schema__pb2.ShardId.FromString,
+            response_serializer=schema__pb2.Shard.SerializeToString,
+        ),
+        "SendPayload": grpc.unary_unary_rpc_method_handler(
+            servicer.SendPayload,
+            request_deserializer=schema__pb2.GatewayPayload.FromString,
+            response_serializer=schema__pb2.Undefined.SerializeToString,
+        ),
     }
-    generic_handler = grpc.method_handlers_generic_handler(
-            'Orchestrator', rpc_method_handlers)
+    generic_handler = grpc.method_handlers_generic_handler("Orchestrator", rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
- # This class is part of an EXPERIMENTAL API.
+# This class is part of an EXPERIMENTAL API.
 class Orchestrator(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Acquire(request_iterator,
+    def Acquire(
+        request_iterator,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.stream_stream(
+            request_iterator,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.stream_stream(request_iterator, target, '/Orchestrator/Acquire',
+            "/Orchestrator/Acquire",
             schema__pb2.Shard.SerializeToString,
             schema__pb2.Instruction.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def AcquireNext(request_iterator,
+    def AcquireNext(
+        request_iterator,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.stream_stream(
+            request_iterator,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.stream_stream(request_iterator, target, '/Orchestrator/AcquireNext',
+            "/Orchestrator/AcquireNext",
             schema__pb2.Shard.SerializeToString,
             schema__pb2.Instruction.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def Disconnect(request,
+    def Disconnect(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Orchestrator/Disconnect',
+            "/Orchestrator/Disconnect",
             schema__pb2.ShardId.SerializeToString,
             schema__pb2.DisconnectResult.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def GetState(request,
+    def GetState(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Orchestrator/GetState',
+            "/Orchestrator/GetState",
             schema__pb2.ShardId.SerializeToString,
             schema__pb2.Shard.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
 
     @staticmethod
-    def SendPayload(request,
+    def SendPayload(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
             target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/Orchestrator/SendPayload',
+            "/Orchestrator/SendPayload",
             schema__pb2.GatewayPayload.SerializeToString,
-            schema__pb2.Empty.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+            schema__pb2.Undefined.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )

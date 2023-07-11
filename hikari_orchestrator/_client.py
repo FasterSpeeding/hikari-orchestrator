@@ -44,6 +44,9 @@ from google.protobuf import timestamp_pb2
 from . import _protos
 
 if typing.TYPE_CHECKING:
+    import google.protobuf.message
+
+    _T = typing.TypeVar("_T")
     _ShardT = typing.TypeVar("_ShardT", bound=hikari.api.GatewayShard)
     _StreamT = grpc.aio.StreamStreamCall[_protos.Shard, _protos.Instruction]
 
@@ -96,14 +99,59 @@ class _LiveAttributes:
     shards: dict[int, _TrackedShard] = dataclasses.field(default_factory=dict)
 
 
+# TODO: check this implicitly also works for UndefinedNoneOr fields.
+def _maybe_undefined(
+    message: google.protobuf.message.Message, field: str, field_value: _T, /
+) -> hikari.UndefinedOr[_T]:
+    name = message.WhichOneof("field")
+    assert isinstance(name, str)
+    if name and name.startswith("undefined_"):
+        return hikari.UNDEFINED
+
+    return field_value
+
+
 async def _handle_instructions(shard: _TrackedShard, /) -> None:
     async for instruction in shard.stream:
         if instruction.type is _protos.InstructionType.DISCONNECT:
             await shard.disconnect()
             break
 
-        else:
-            ...  # TODO: log lol
+        elif instruction.type is not _protos.InstructionType.GATEWAY_PAYLOAD:
+            continue  # TODO: log
+
+        match instruction.WhichOneof("payload"):
+            case "presence_update":
+                status = instruction.presence_update.status
+                idle_since = _maybe_undefined(
+                    instruction.presence_update, "idle_since", instruction.presence_update.idle_timestamp
+                )
+                afk = instruction.presence_update.afk
+                activity = _maybe_undefined(
+                    instruction.presence_update, "activity", instruction.presence_update.activity_payload
+                )
+                if activity:
+                    activity = hikari.Activity(name=activity.name, url=activity.url, type=activity.type)
+
+                await shard.shard.update_presence(
+                    idle_since=idle_since.ToDatetime() if idle_since else idle_since,
+                    afk=hikari.UNDEFINED if afk is None else afk,
+                    activity=activity,
+                    status=hikari.UNDEFINED if status is None else hikari.Status(status),
+                )
+
+            case "voice_state":
+                self_deaf = instruction.voice_state.self_deaf
+                self_mute = instruction.voice_state.self_mute
+                await shard.shard.update_voice_state(
+                    guild=instruction.voice_state.guild_id,
+                    channel=instruction.voice_state.channel_id,
+                    self_deaf=hikari.UNDEFINED if self_deaf is None else self_deaf,
+                    self_mute=hikari.UNDEFINED if self_mute is None else self_mute,
+                )
+
+            case _:
+                pass  # TODO: log
 
 
 async def _handle_status(shard: _TrackedShard, /) -> None:
@@ -157,10 +205,7 @@ class Client:
         if instruction.type is _protos.DISCONNECT:
             raise RuntimeError("Failed to connect")
 
-        if (
-            instruction.type is not _protos.InstructionType.CONNECT
-            or instruction.shard_id is None  # type: ignore[reportUnnecessaryComparison]
-        ):
+        if instruction.type is not _protos.InstructionType.CONNECT or instruction.shard_id is None:
             raise NotImplementedError(instruction.type)
 
         shard = make_shard(instruction.shard_id)
@@ -183,3 +228,76 @@ class Client:
 
     async def close_shard(self, shard_id: int, /) -> None:
         await self._get_live().shards[shard_id].disconnect()
+
+    async def update_presence(
+        self,
+        *,
+        idle_since: hikari.UndefinedNoneOr[datetime.datetime] = hikari.UNDEFINED,
+        afk: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+        activity: hikari.UndefinedNoneOr[hikari.Activity] = hikari.UNDEFINED,
+        status: hikari.UndefinedOr[hikari.Status] = hikari.UNDEFINED,
+    ) -> None:
+        idle_timestamp, undefined_idle = _or_undefined(idle_since)
+        if idle_timestamp:
+            raw_idle_timestamp = idle_timestamp
+            idle_timestamp = timestamp_pb2.Timestamp()
+            idle_timestamp.FromDatetime(raw_idle_timestamp)
+
+        activity_payload, undefined_activity = _or_undefined(activity)
+        if activity_payload:
+            activity_payload = _protos.PresenceActivity(
+                name=activity_payload.name, url=activity_payload.url, type=activity_payload.type
+            )
+
+        update = _protos.PresenceUpdate(
+            idle_timestamp=idle_timestamp,
+            undefined_idle=undefined_idle,
+            afk=None if afk is hikari.UNDEFINED else afk,
+            activity_payload=activity_payload,
+            undefined_activity=undefined_activity,
+            status=None if status is hikari.UNDEFINED else status,
+        )
+        await self._get_live().orchestrator.SendPayload(_protos.GatewayPayload(presence_update=update))
+
+    async def update_voice_state(
+        self,
+        guild: hikari.SnowflakeishOr[hikari.PartialGuild],
+        channel: hikari.SnowflakeishOr[hikari.GuildVoiceChannel] | None,
+        *,
+        self_mute: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+        self_deaf: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+    ) -> None:
+        state = _protos.VoiceState(
+            guild_id=int(guild),
+            channel_id=None if channel is None else int(channel),
+            self_mute=None if self_mute is hikari.UNDEFINED else self_mute,
+            self_deaf=None if self_deaf is hikari.UNDEFINED else self_deaf,
+        )
+        await self._get_live().orchestrator.SendPayload(_protos.GatewayPayload(voice_state=state))
+
+    async def request_guild_members(
+        self,
+        guild: hikari.SnowflakeishOr[hikari.PartialGuild],
+        *,
+        include_presences: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+        query: str = "",
+        limit: int = 0,
+        users: hikari.UndefinedOr[hikari.SnowflakeishSequence[hikari.User]] = hikari.UNDEFINED,
+        nonce: hikari.UndefinedOr[str] = hikari.UNDEFINED,
+    ) -> None:
+        request = _protos.RequestGuildMembers(
+            guild_id=int(guild),
+            include_presences=None if include_presences is hikari.UNDEFINED else include_presences,
+            query=query,
+            limit=limit,
+            users=None if users is hikari.UNDEFINED else map(int, users),
+            nonce=None if nonce is hikari.UNDEFINED else nonce,
+        )
+        await self._get_live().orchestrator.SendPayload(_protos.GatewayPayload(request_guild_members=request))
+
+
+def _or_undefined(value: hikari.UndefinedOr[_T]) -> tuple[_T | None, _protos.Undefined | None]:
+    if value is hikari.UNDEFINED:
+        return None, _protos.Undefined()
+
+    return value, None

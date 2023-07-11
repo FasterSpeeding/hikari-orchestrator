@@ -7,7 +7,7 @@ service Orchestrator {
     rpc AcquireNext(stream Shard) returns (stream Instruction) {}
     rpc Disconnect (ShardId) returns (DisconnectResult) {}
     rpc GetState (ShardId) returns (Shard) {}
-    rpc SendPayload(GatewayPayload) returns (Empty) {}
+    rpc SendPayload(GatewayPayload) returns (Undefined) {}
 }
 
 enum InstructionType {
@@ -16,12 +16,51 @@ enum InstructionType {
     CONNECT = 2;
 }
 
+message PresenceActivity {
+    string name = 1;
+    optional string url = 2;
+    int64 type = 3;
+}
+
+message PresenceUpdate {
+    oneof idle_sine {
+        google.protobuf.Timestamp idle_timestamp = 1;
+        Undefined undefined_idle = 2;
+    };
+    optional bool afk = 3;
+    oneof activity {
+        PresenceActivity activity_payload = 4;
+        Undefined undefined_activity = 5;
+    };
+    optional string status = 6;
+}
+
+message RequestGuildMembers {
+    int64 guild_id = 1;
+    optional bool include_presences = 2;
+    string query = 3;
+    int64 limit = 4;
+    repeated int64 users = 5;
+    optional string nonce = 6;
+}
+
+message VoiceState {
+    int64 guild_id = 1;
+    optional int64 channel_id = 2;
+    optional bool self_mute = 3;
+    optional bool self_deaf = 4;
+}
+
 message Instruction {
     InstructionType type = 1;
-    optional string json = 2;
-    optional int64 shard_id = 3;
-    // optional int64 seq = 4
-    // optional string session_id = 5;
+    oneof payload {
+        PresenceUpdate presence_update = 2;
+        VoiceState voice_state = 3;
+        RequestGuildMembers request_guild_members = 4;
+    };
+    optional int64 shard_id = 5;
+    // optional int64 seq = 6
+    // optional string session_id = 7;
 }
 
 message ShardId {
@@ -55,8 +94,11 @@ message DisconnectResult {
 }
 
 message GatewayPayload {
-    optional int64 shard_id = 1;
-    string json = 2;
+    oneof payload {
+        PresenceUpdate presence_update = 2;
+        VoiceState voice_state = 3;
+        RequestGuildMembers request_guild_members = 4;
+    };
 }
 
-message Empty {}
+message Undefined {}

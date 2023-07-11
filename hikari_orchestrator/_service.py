@@ -69,7 +69,7 @@ class Orchestrator(_protos.OrchestratorServicer):
         self._shards: dict[int, _TrackedShard] = {shard_id: _TrackedShard(shard_id) for shard_id in range(shard_count)}
         self._token = token
 
-    async def Acquire(
+    def Acquire(
         self, request_iterator: collections.AsyncIterator[_protos.Shard], context: grpc.ServicerContext
     ) -> collections.AsyncIterator[_protos.Instruction]:
         raise NotImplementedError
@@ -120,8 +120,8 @@ class Orchestrator(_protos.OrchestratorServicer):
     def GetState(self, request: _protos.ShardId, _: grpc.ServicerContext) -> _protos.Shard:
         return self._shards[request.shard_id].state
 
-    async def SendPayload(self, request: _protos.GatewayPayload, context: grpc.ServicerContext) -> _protos.Empty:
-        return _protos.Empty()
+    async def SendPayload(self, request: _protos.GatewayPayload, context: grpc.ServicerContext) -> _protos.Undefined:
+        return _protos.Undefined()
 
 
 def _spawn_child(
