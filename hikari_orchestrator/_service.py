@@ -106,7 +106,7 @@ class Orchestrator(_protos.OrchestratorServicer):
 
         state = await anext(aiter(request_iterator))
         shard.update_state(state)
-        self._tasks.append(asyncio.create_task(_release_after_5(semaphore)))
+        self._store_task(asyncio.create_task(_release_after_5(semaphore)))
 
         state_event = asyncio.create_task(_handle_states(shard, request_iterator))
         queue = shard.queue = asyncio.Queue[_protos.Instruction]()
