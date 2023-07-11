@@ -28,10 +28,10 @@ dependencies = ["grpcio>=1, <2", "grpcio-tools>=1, <2", "hikari>=2.0.0.dev116, <
 dynamic = ["description"]
 
 [project.urls]
-Homepage = "https://github.com/FasterSpeeding/hikari_orchestrator"
-Repository = "https://github.com/FasterSpeeding/hikari_orchestrator"
-# Documentation = "https://hikari_orchestrator.cursed.solutions/"
-# Changelog = "https://github.com/FasterSpeeding/hikari_orchestrator/blob/master/CHANGELOG.md"
+Homepage = "https://github.com/FasterSpeeding/hikari-orchestrator"
+Repository = "https://github.com/FasterSpeeding/hikari-orchestrator"
+# Documentation = "https://hikari-orchestrator.cursed.solutions/"
+# Changelog = "https://github.com/FasterSpeeding/hikari-orchestrator/blob/master/CHANGELOG.md"
 
 [tool.flit.module]
 name = "hikari_orchestrator"
