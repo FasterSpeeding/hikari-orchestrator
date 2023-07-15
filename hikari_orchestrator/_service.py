@@ -33,6 +33,7 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import datetime
+import logging
 import math
 import os
 from collections import abc as collections
@@ -42,6 +43,9 @@ import hikari
 
 from . import _bot
 from . import _protos
+
+
+_LOGGER = logging.getLogger("hikari.orchestrator")
 
 
 def _now() -> datetime.datetime:
@@ -204,6 +208,7 @@ async def _spawn_server(
     else:
         port = server.add_insecure_port(address)
 
+    _LOGGER.info("Starting server at %s:%s", address.rsplit(':', 1)[0], port)
     await server.start()
     return port, server
 
@@ -221,7 +226,6 @@ def run_server(
     _, server = loop.run_until_complete(
         _spawn_server(token, address, credentials=credentials, gateway_info=gateway_info, shard_count=shard_count)
     )
-    # TODO: log the address
     loop.run_until_complete(server.wait_for_termination())
 
 
@@ -240,7 +244,7 @@ async def spawn_subprocesses(
 
     port, server = await _spawn_server(
         token,
-        "[::]:0",
+        "localhost:0",
         credentials=grpc.local_server_credentials(),
         gateway_info=gateway_info,
         shard_count=global_shard_count,
