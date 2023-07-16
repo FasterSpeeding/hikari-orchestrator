@@ -4,11 +4,11 @@ import "google/protobuf/timestamp.proto";
 
 service Orchestrator {
     rpc Acquire (stream Shard) returns (stream Instruction) {}
-    rpc AcquireNext(stream Shard) returns (stream Instruction) {}
+    rpc AcquireNext (stream Shard) returns (stream Instruction) {}
     rpc Disconnect (ShardId) returns (DisconnectResult) {}
     rpc GetState (ShardId) returns (Shard) {}
     rpc GetAllStates (Undefined) returns (AllShards) {}
-    rpc SendPayload(GatewayPayload) returns (Undefined) {}
+    rpc SendPayload (GatewayPayload) returns (Undefined) {}
 }
 
 enum InstructionType {
@@ -24,7 +24,7 @@ message PresenceActivity {
 }
 
 message PresenceUpdate {
-    oneof idle_sine {
+    oneof idle_since {
         google.protobuf.Timestamp idle_timestamp = 1;
         Undefined undefined_idle = 2;
     };
@@ -75,6 +75,7 @@ enum ShardState {
 }
 
 // TODO: add gateway_url
+// TODO: maybe rename to ShardState
 message Shard {
     ShardState state = 1;
     google.protobuf.Timestamp last_seen = 2;
@@ -82,6 +83,7 @@ message Shard {
     optional string session_id = 4;
     optional int64 seq = 5;
     int64 shard_id = 6;
+    // TODO: add presence here so it can be persisted
 }
 
 message AllShards {
