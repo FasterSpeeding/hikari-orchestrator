@@ -65,7 +65,7 @@ class _TrackedShard:
 
 async def _handle_states(stored: _TrackedShard, request_iterator: collections.AsyncIterator[_protos.Shard]) -> None:
     async for shard_state in request_iterator:
-        _LOGGER.info("Shard %s: Received state update", stored.state.shard_id)
+        _LOGGER.debug("Shard %s: Received state update", stored.state.shard_id)
         stored.update_state(shard_state)
 
 
