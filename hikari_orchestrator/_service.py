@@ -65,6 +65,7 @@ class _TrackedShard:
 
 async def _handle_states(stored: _TrackedShard, request_iterator: collections.AsyncIterator[_protos.Shard]) -> None:
     async for shard_state in request_iterator:
+        _LOGGER.info("Shard %s: Received state update", stored.state.shard_id)
         stored.update_state(shard_state)
 
 
@@ -77,12 +78,16 @@ class Orchestrator(_protos.OrchestratorServicer):
     def __init__(self, token: str, shard_count: int, /, *, session_start_limit: hikari.SessionStartLimit) -> None:
         self._buckets = {bucket: asyncio.BoundedSemaphore() for bucket in range(session_start_limit.max_concurrency)}
         self._shards: dict[int, _TrackedShard] = {shard_id: _TrackedShard(shard_id) for shard_id in range(shard_count)}
+        self._shard_count_zfill = len(str(shard_count))
         self._tasks: list[asyncio.Task[None]] = []
         self._token = token
 
     def _store_task(self, task: asyncio.Task[None], /) -> None:
         task.add_done_callback(self._tasks.remove)
         self._tasks.append(task)
+
+    def _zfill(self, value: int, /) -> str:
+        return str(value).zfill(self._shard_count_zfill)
 
     def Acquire(
         self, request_iterator: collections.AsyncIterator[_protos.Shard], context: grpc.ServicerContext
@@ -97,16 +102,23 @@ class Orchestrator(_protos.OrchestratorServicer):
                 break
 
         else:
+            _LOGGER.warning("Received acquire next request but all shards taken")
             yield _protos.Instruction(type=_protos.InstructionType.DISCONNECT)
             return
 
+        shard_id = shard.state.shard_id
+        log_shard_id = self._zfill(shard_id)
+        _LOGGER.info("Shard %s: Acquire next request received", log_shard_id)
         shard.state.state = _protos.ShardState.STARTING
-        semaphore = self._buckets[shard.state.shard_id % len(self._buckets)]
+        semaphore = self._buckets[shard_id % len(self._buckets)]
         await semaphore.acquire()
 
-        yield _protos.Instruction(type=_protos.InstructionType.CONNECT, shard_id=shard.state.shard_id)
+        _LOGGER.info("Shard %s: Starting", log_shard_id)
+        yield _protos.Instruction(type=_protos.InstructionType.CONNECT, shard_id=shard_id)
 
         state = await anext(aiter(request_iterator))
+        _LOGGER.info("Shard %s: Started", log_shard_id)
+
         shard.update_state(state)
         self._store_task(asyncio.create_task(_release_after_5(semaphore)))
 
@@ -123,6 +135,7 @@ class Orchestrator(_protos.OrchestratorServicer):
                 queue_wait = asyncio.create_task(queue.get())
 
         finally:
+            _LOGGER.info("Shard %s went way", log_shard_id)
             queue_wait.cancel()
             state_event.cancel()
             shard.state.state = _protos.STOPPED
@@ -131,16 +144,24 @@ class Orchestrator(_protos.OrchestratorServicer):
     def Disconnect(self, request: _protos.ShardId, _: grpc.ServicerContext) -> _protos.DisconnectResult:
         shard = self._shards.get(request.shard_id)
         if not shard or not shard.queue:
+            _LOGGER.warning(
+                "Shard %s: Received failed request received; shard %s",
+                self._zfill(request.shard_id),
+                "is in-active" if shard else "doesn't exist",
+            )
             return _protos.DisconnectResult(_protos.FAILED)
 
+        _LOGGER.info("Shard %s: Received disconnect request", self._zfill(request.shard_id))
         instruction = _protos.Instruction(_protos.DISCONNECT)
         shard.queue.put_nowait(instruction)
         return _protos.DisconnectResult(_protos.SUCCESS, shard.state)
 
     def GetState(self, request: _protos.ShardId, _: grpc.ServicerContext) -> _protos.Shard:
+        _LOGGER.debug("Shard %s: Received get state request", self._zfill(request.shard_id))
         return self._shards[request.shard_id].state
 
     async def GetAllStates(self, _: _protos.Undefined, __: grpc.ServicerContext) -> _protos.AllShards:
+        _LOGGER.debug("Shard %s: Received get all states request", "*" * self._shard_count_zfill)
         return _protos.AllShards(shard.state for shard in self._shards.values())
 
     async def SendPayload(self, request: _protos.GatewayPayload, context: grpc.ServicerContext) -> _protos.Undefined:
