@@ -46,7 +46,9 @@ class PresenceActivity(_message.Message):
     name: str
     url: _Optional[str]
     type: int
-    def __init__(self, name: _Optional[str] = ..., url: _Optional[str] = ..., type: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self, *, name: _Optional[str] = ..., url: _Optional[str] = ..., type: _Optional[int] = ...
+    ) -> None: ...
 
 class PresenceUpdate(_message.Message):
     __slots__ = ["idle_timestamp", "undefined_idle", "afk", "activity_payload", "undefined_activity", "status"]
@@ -64,6 +66,7 @@ class PresenceUpdate(_message.Message):
     status: _Optional[str]
     def __init__(
         self,
+        *,
         idle_timestamp: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         undefined_idle: _Optional[_Union[Undefined, _Mapping]] = ...,
         afk: _Optional[bool] = ...,
@@ -88,6 +91,7 @@ class RequestGuildMembers(_message.Message):
     nonce: _Optional[str]
     def __init__(
         self,
+        *,
         guild_id: _Optional[int] = ...,
         include_presences: _Optional[bool] = ...,
         query: _Optional[str] = ...,
@@ -108,6 +112,7 @@ class VoiceState(_message.Message):
     self_deaf: _Optional[bool]
     def __init__(
         self,
+        *,
         guild_id: _Optional[int] = ...,
         channel_id: _Optional[int] = ...,
         self_mute: _Optional[bool] = ...,
@@ -128,6 +133,7 @@ class Instruction(_message.Message):
     shard_id: _Optional[int]
     def __init__(
         self,
+        *,
         type: _Optional[_Union[InstructionType, str]] = ...,
         presence_update: _Optional[_Union[PresenceUpdate, _Mapping]] = ...,
         voice_state: _Optional[_Union[VoiceState, _Mapping]] = ...,
@@ -139,7 +145,7 @@ class ShardId(_message.Message):
     __slots__ = ["shard_id"]
     SHARD_ID_FIELD_NUMBER: _ClassVar[int]
     shard_id: int
-    def __init__(self, shard_id: _Optional[int] = ...) -> None: ...
+    def __init__(self, *, shard_id: _Optional[int] = ...) -> None: ...
 
 class Shard(_message.Message):
     __slots__ = ["state", "last_seen", "latency", "session_id", "seq", "shard_id"]
@@ -157,6 +163,7 @@ class Shard(_message.Message):
     shard_id: int
     def __init__(
         self,
+        *,
         state: _Optional[_Union[ShardState, str]] = ...,
         last_seen: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ...,
         latency: _Optional[float] = ...,
@@ -169,7 +176,7 @@ class AllShards(_message.Message):
     __slots__ = ["shards"]
     SHARDS_FIELD_NUMBER: _ClassVar[int]
     shards: _containers.RepeatedCompositeFieldContainer[Shard]
-    def __init__(self, shards: _Optional[_Iterable[_Union[Shard, _Mapping]]] = ...) -> None: ...
+    def __init__(self, *, shards: _Optional[_Iterable[_Union[Shard, _Mapping]]] = ...) -> None: ...
 
 class DisconnectResult(_message.Message):
     __slots__ = ["status", "state"]
@@ -178,7 +185,7 @@ class DisconnectResult(_message.Message):
     status: StatusType
     state: _Optional[Shard]
     def __init__(
-        self, status: _Optional[_Union[StatusType, str]] = ..., state: _Optional[_Union[Shard, _Mapping]] = ...
+        self, *, status: _Optional[_Union[StatusType, str]] = ..., state: _Optional[_Union[Shard, _Mapping]] = ...
     ) -> None: ...
 
 class GatewayPayload(_message.Message):
@@ -193,6 +200,7 @@ class GatewayPayload(_message.Message):
     request_guild_members: RequestGuildMembers
     def __init__(
         self,
+        *,
         shard_id: _Optional[int] = ...,
         presence_update: _Optional[_Union[PresenceUpdate, _Mapping]] = ...,
         voice_state: _Optional[_Union[VoiceState, _Mapping]] = ...,
