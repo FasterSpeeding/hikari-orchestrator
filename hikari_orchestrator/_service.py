@@ -86,6 +86,9 @@ class Orchestrator(_protos.OrchestratorServicer):
         task.add_done_callback(self._tasks.remove)
         self._tasks.append(task)
 
+    def _char_fill(self, value: str, /) -> str:
+        return value * self._shard_count_zfill
+
     def _zfill(self, value: int, /) -> str:
         return str(value).zfill(self._shard_count_zfill)
 
@@ -102,13 +105,13 @@ class Orchestrator(_protos.OrchestratorServicer):
                 break
 
         else:
-            _LOGGER.warning("Received acquire next request but all shards taken")
+            _LOGGER.warning("Received AcquireNext request but all shards taken")
             yield _protos.Instruction(type=_protos.InstructionType.DISCONNECT)
             return
 
         shard_id = shard.state.shard_id
         log_shard_id = self._zfill(shard_id)
-        _LOGGER.info("Shard %s: Acquire next request received", log_shard_id)
+        _LOGGER.info("Shard %s: AcquireNext request received", log_shard_id)
         shard.state.state = _protos.ShardState.STARTING
         semaphore = self._buckets[shard_id % len(self._buckets)]
         await semaphore.acquire()
@@ -145,26 +148,48 @@ class Orchestrator(_protos.OrchestratorServicer):
         shard = self._shards.get(request.shard_id)
         if not shard or not shard.queue:
             _LOGGER.warning(
-                "Shard %s: Received failed request received; shard %s",
+                "Shard %s: Received invalid Disconnect request; shard %s",
                 self._zfill(request.shard_id),
                 "is in-active" if shard else "doesn't exist",
             )
-            return _protos.DisconnectResult(_protos.FAILED)
+            return _protos.DisconnectResult(status=_protos.FAILED)
 
-        _LOGGER.info("Shard %s: Received disconnect request", self._zfill(request.shard_id))
-        instruction = _protos.Instruction(_protos.DISCONNECT)
+        _LOGGER.info("Shard %s: Received Disconnect request", self._zfill(request.shard_id))
+        instruction = _protos.Instruction(type=_protos.DISCONNECT)
         shard.queue.put_nowait(instruction)
-        return _protos.DisconnectResult(_protos.SUCCESS, shard.state)
+        return _protos.DisconnectResult(status=_protos.SUCCESS, state=shard.state)
 
     def GetState(self, request: _protos.ShardId, _: grpc.ServicerContext) -> _protos.Shard:
-        _LOGGER.debug("Shard %s: Received get state request", self._zfill(request.shard_id))
+        _LOGGER.debug("Shard %s: Received GetState request", self._zfill(request.shard_id))
         return self._shards[request.shard_id].state
 
     async def GetAllStates(self, _: _protos.Undefined, __: grpc.ServicerContext) -> _protos.AllShards:
-        _LOGGER.debug("Shard %s: Received get all states request", "*" * self._shard_count_zfill)
-        return _protos.AllShards(shard.state for shard in self._shards.values())
+        _LOGGER.debug("Shard %s: Received GetAllStates request", self._char_fill("*"))
+        return _protos.AllShards(shards=(shard.state for shard in self._shards.values()))
 
     async def SendPayload(self, request: _protos.GatewayPayload, context: grpc.ServicerContext) -> _protos.Undefined:
+        match request.WhichOneof("payload"):
+            case "presence_update":
+                payload = request.presence_update
+                shard_id = request.shard_id
+                shard_id_repr = self._char_fill("*") if shard_id is None else self._zfill(shard_id)
+                _LOGGER.debug("Shard %s: Received request_guild_members SendPayload request", shard_id_repr)
+
+            case "voice_state":
+                payload = request.voice_state
+                shard_id = hikari.snowflakes.calculate_shard_id(len(self._shards), payload.guild_id)
+                _LOGGER.debug("Shard %s: Received voice_state SendPayload request", shard_id)
+
+            case "request_guild_members":
+                payload = request.request_guild_members
+                shard_id = hikari.snowflakes.calculate_shard_id(len(self._shards), payload.guild_id)
+                _LOGGER.debug("Shard %s: Received request_guild_members SendPayload request", shard_id)
+
+            case value:
+                shard_id_repr = self._char_fill("?") if request.shard_id is None else self._zfill(request.shard_id)
+                _LOGGER.warning("Shard %s: Received unexpected %s SendPayload request", shard_id_repr, value)
+                return _protos.Undefined()
+
         return _protos.Undefined()
 
 
