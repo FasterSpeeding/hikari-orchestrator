@@ -182,15 +182,18 @@ class DisconnectResult(_message.Message):
     ) -> None: ...
 
 class GatewayPayload(_message.Message):
-    __slots__ = ["presence_update", "voice_state", "request_guild_members"]
+    __slots__ = ["shard_id", "presence_update", "voice_state", "request_guild_members"]
+    SHARD_ID_FIELD_NUMBER: _ClassVar[int]
     PRESENCE_UPDATE_FIELD_NUMBER: _ClassVar[int]
     VOICE_STATE_FIELD_NUMBER: _ClassVar[int]
     REQUEST_GUILD_MEMBERS_FIELD_NUMBER: _ClassVar[int]
+    shard_id: _Optional[int]
     presence_update: PresenceUpdate
     voice_state: VoiceState
     request_guild_members: RequestGuildMembers
     def __init__(
         self,
+        shard_id: _Optional[int] = ...,
         presence_update: _Optional[_Union[PresenceUpdate, _Mapping]] = ...,
         voice_state: _Optional[_Union[VoiceState, _Mapping]] = ...,
         request_guild_members: _Optional[_Union[RequestGuildMembers, _Mapping]] = ...,

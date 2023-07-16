@@ -101,6 +101,7 @@ message DisconnectResult {
 }
 
 message GatewayPayload {
+    int64 shard_id = 1;
     oneof payload {
         PresenceUpdate presence_update = 2;
         VoiceState voice_state = 3;
