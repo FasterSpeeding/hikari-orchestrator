@@ -363,10 +363,10 @@ class Bot(hikari.GatewayBotAware):
 
     async def _fetch_other_states(self, proxied_shards: dict[int, _ShardProxy], /) -> None:
         while True:
-            await asyncio.sleep(10)
             for state in await self._manager.get_all_states():
                 if shard := proxied_shards.get(state.shard_id):
                     shard.update_state(state)
+            await asyncio.sleep(10)
 
     async def start(self) -> None:
         if self._close_event:
