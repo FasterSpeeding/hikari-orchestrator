@@ -44,7 +44,6 @@ import hikari
 from . import _bot
 from . import _protos
 
-
 _LOGGER = logging.getLogger("hikari.orchestrator")
 
 
@@ -208,7 +207,7 @@ async def _spawn_server(
     else:
         port = server.add_insecure_port(address)
 
-    _LOGGER.info("Starting server at %s:%s", address.rsplit(':', 1)[0], port)
+    _LOGGER.info("Starting server at %s:%s", address.rsplit(":", 1)[0], port)
     await server.start()
     return port, server
 
