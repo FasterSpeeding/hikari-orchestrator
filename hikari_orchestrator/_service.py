@@ -285,7 +285,14 @@ async def spawn_subprocesses(
 ) -> None:
     gateway_info = await _fetch_bot_info(token)
     global_shard_count = shard_count or gateway_info.shard_count
-    local_shard_count = math.ceil(global_shard_count / subprocess_count)
+    local_shard_count = global_shard_count / subprocess_count
+
+    if local_shard_count < 1:
+        local_shard_count = 1
+        subprocess_count = global_shard_count
+
+    else:
+        local_shard_count = math.ceil(local_shard_count)
 
     port, server = await _spawn_server(
         token,
