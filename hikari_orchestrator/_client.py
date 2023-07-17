@@ -61,6 +61,7 @@ class _TrackedShard:
     live_attributes: _LiveAttributes
     shard: hikari.api.GatewayShard
     stream: _StreamT
+    gateway_url: str
     instructions_task: asyncio.Task[None] | None = None
     status_task: asyncio.Task[None] | None = None
 
@@ -87,8 +88,14 @@ class _TrackedShard:
             session_id=session_id,
             seq=seq,
             shard_id=self.shard.id,
+            gateway_url=self.gateway_url,
         )
         await self.stream.write(state)
+
+    async def _on_ready(self, event: hikari.ShardReadyEvent) -> None:
+        # TODO: can we update this earlier?
+        self.gateway_url = event.resume_gateway_url
+        await self.update_status()
 
 
 @dataclasses.dataclass(slots=True)
@@ -201,7 +208,7 @@ class Client:
     async def acquire_shard(self, shard: hikari.api.GatewayShard, /) -> None:
         raise NotImplementedError
 
-    async def recommended_shard(self, make_shard: collections.Callable[[int], _ShardT], /) -> _ShardT:
+    async def recommended_shard(self, make_shard: collections.Callable[[_protos.Shard], _ShardT], /) -> _ShardT:
         live_attrs = self._get_live()
         stream = live_attrs.orchestrator.AcquireNext()
 
@@ -213,15 +220,17 @@ class Client:
         if instruction.type is not _protos.InstructionType.CONNECT or instruction.shard_id is None:
             raise NotImplementedError(instruction.type)
 
-        shard = make_shard(instruction.shard_id)
-        live_attrs.shards[instruction.shard_id] = tracked_shard = _TrackedShard(live_attrs, shard, stream)
+        shard = make_shard(instruction.shard_state)
+        live_attrs.shards[instruction.shard_id] = tracked_shard = _TrackedShard(
+            live_attrs, shard, stream, instruction.shard_state.gateway_url
+        )
 
         try:
+            # TODO: handle RuntimeError from failing to start better
             await shard.start()
 
             tracked_shard.instructions_task = asyncio.create_task(_handle_instructions(tracked_shard))
             tracked_shard.status_task = asyncio.create_task(_handle_status(tracked_shard))
-            await tracked_shard.update_status()
 
         except Exception:  # This currently may raise an error which can't be pickled
             import traceback

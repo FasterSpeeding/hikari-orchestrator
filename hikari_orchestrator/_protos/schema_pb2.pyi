@@ -120,17 +120,19 @@ class VoiceState(_message.Message):
     ) -> None: ...
 
 class Instruction(_message.Message):
-    __slots__ = ["type", "presence_update", "voice_state", "request_guild_members", "shard_id"]
+    __slots__ = ["type", "presence_update", "voice_state", "request_guild_members", "shard_id", "shard_state"]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     PRESENCE_UPDATE_FIELD_NUMBER: _ClassVar[int]
     VOICE_STATE_FIELD_NUMBER: _ClassVar[int]
     REQUEST_GUILD_MEMBERS_FIELD_NUMBER: _ClassVar[int]
     SHARD_ID_FIELD_NUMBER: _ClassVar[int]
+    SHARD_STATE_FIELD_NUMBER: _ClassVar[int]
     type: InstructionType
     presence_update: PresenceUpdate
     voice_state: VoiceState
     request_guild_members: RequestGuildMembers
     shard_id: _Optional[int]
+    shard_state: Shard
     def __init__(
         self,
         *,
@@ -139,6 +141,7 @@ class Instruction(_message.Message):
         voice_state: _Optional[_Union[VoiceState, _Mapping]] = ...,
         request_guild_members: _Optional[_Union[RequestGuildMembers, _Mapping]] = ...,
         shard_id: _Optional[int] = ...,
+        shard_state: _Optional[_Union[Shard, _Mapping]] = ...,
     ) -> None: ...
 
 class ShardId(_message.Message):
@@ -148,19 +151,21 @@ class ShardId(_message.Message):
     def __init__(self, *, shard_id: _Optional[int] = ...) -> None: ...
 
 class Shard(_message.Message):
-    __slots__ = ["state", "last_seen", "latency", "session_id", "seq", "shard_id"]
+    __slots__ = ["state", "last_seen", "latency", "session_id", "seq", "shard_id", "gateway_url"]
     STATE_FIELD_NUMBER: _ClassVar[int]
     LAST_SEEN_FIELD_NUMBER: _ClassVar[int]
     LATENCY_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     SEQ_FIELD_NUMBER: _ClassVar[int]
     SHARD_ID_FIELD_NUMBER: _ClassVar[int]
+    GATEWAY_URL_FIELD_NUMBER: _ClassVar[int]
     state: ShardState
     last_seen: _timestamp_pb2.Timestamp
     latency: float
     session_id: _Optional[str]
     seq: _Optional[int]
     shard_id: int
+    gateway_url: str
     def __init__(
         self,
         *,
@@ -170,6 +175,7 @@ class Shard(_message.Message):
         session_id: _Optional[str] = ...,
         seq: _Optional[int] = ...,
         shard_id: _Optional[int] = ...,
+        gateway_url: _Optional[str] = ...,
     ) -> None: ...
 
 class AllShards(_message.Message):
