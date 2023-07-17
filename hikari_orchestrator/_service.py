@@ -70,12 +70,6 @@ class _TrackedShard:
         self.state = state
 
 
-async def _handle_states(stored: _TrackedShard, request_iterator: collections.AsyncIterator[_protos.Shard]) -> None:
-    async for shard_state in request_iterator:
-        _LOGGER.debug("Shard %s: Received state update", stored.state.shard_id)
-        stored.update_state(shard_state)
-
-
 async def _release_after_5(semaphore: asyncio.BoundedSemaphore) -> None:
     await asyncio.sleep(5)
     semaphore.release()
@@ -148,7 +142,7 @@ class Orchestrator(_protos.OrchestratorServicer):
         shard.update_state(state)
         self._store_task(asyncio.create_task(_release_after_5(semaphore)))
 
-        state_event = asyncio.create_task(_handle_states(shard, request_iterator))
+        state_event = asyncio.create_task(self._handle_states(shard, request_iterator))
         queue = shard.queue = asyncio.Queue[_protos.Instruction]()
         queue_wait = asyncio.create_task(queue.get())
 
@@ -166,6 +160,13 @@ class Orchestrator(_protos.OrchestratorServicer):
             state_event.cancel()
             shard.state.state = _protos.STOPPED
             shard.queue = None
+
+    async def _handle_states(
+        self, stored: _TrackedShard, request_iterator: collections.AsyncIterator[_protos.Shard]
+    ) -> None:
+        async for shard_state in request_iterator:
+            _LOGGER.debug("Shard %s: Received state update", self._zfill(stored.state.shard_id))
+            stored.update_state(shard_state)
 
     def Disconnect(self, request: _protos.ShardId, _: grpc.ServicerContext) -> _protos.DisconnectResult:
         shard = self._shards.get(request.shard_id)
