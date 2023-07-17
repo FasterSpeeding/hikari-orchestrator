@@ -41,7 +41,7 @@ from collections import abc as collections
 import grpc.aio  # type: ignore
 import hikari
 
-from . import _bot
+from . import _bot  # pyright: ignore[reportPrivateUsage]
 from . import _protos
 
 _LOGGER = logging.getLogger("hikari.orchestrator")
