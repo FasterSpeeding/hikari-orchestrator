@@ -40,6 +40,7 @@ from collections import abc as collections
 
 import grpc.aio  # type: ignore
 import hikari
+from google.protobuf import timestamp_pb2
 
 from . import _bot  # pyright: ignore[reportPrivateUsage]
 from . import _protos
@@ -56,7 +57,11 @@ class _TrackedShard:
 
     def __init__(self, shard_id: int, gateway_url: str, /) -> None:
         self.queue: asyncio.Queue[_protos.Instruction] | None = None
-        self.state = _protos.Shard(state=_protos.STOPPED, shard_id=shard_id, gateway_url=gateway_url)
+        last_seen = timestamp_pb2.Timestamp()
+        last_seen.FromDatetime(_now())
+        self.state = _protos.Shard(
+            latency=float("nan"), last_seen=last_seen, state=_protos.STOPPED, shard_id=shard_id, gateway_url=gateway_url
+        )
 
     def update_state(self, state: _protos.Shard, /) -> None:
         state.last_seen.FromDatetime(_now())
