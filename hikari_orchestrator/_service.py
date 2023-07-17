@@ -135,7 +135,7 @@ class Orchestrator(_protos.OrchestratorServicer):
         await semaphore.acquire()
 
         _LOGGER.info("Shard %s: Starting", log_shard_id)
-        yield _protos.Instruction(type=_protos.InstructionType.CONNECT, shard_id=shard_id)
+        yield _protos.Instruction(type=_protos.InstructionType.CONNECT, shard_id=shard_id, shard_state=shard.state)
 
         state = await anext(aiter(request_iterator))
         _LOGGER.info("Shard %s: Started", log_shard_id)
