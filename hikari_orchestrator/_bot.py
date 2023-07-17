@@ -187,7 +187,7 @@ class Bot(hikari.GatewayBotAware):
         self._entity_factory = hikari.impl.EntityFactoryImpl(self)
         # TODO: export at hikari.impl
         self._event_factory = hikari.impl.event_factory.EventFactoryImpl(self)
-        # Have to hack default intents here then replace the built event manager later when intents is None
+        # Have to default intents here then hack in the real values later when intents is None.
         self._event_manager = hikari.impl.EventManagerImpl(
             self._entity_factory, self._event_factory, hikari.Intents.ALL if self._intents is None else self._intents
         )
@@ -252,8 +252,8 @@ class Bot(hikari.GatewayBotAware):
 
     @property
     def intents(self) -> hikari.Intents:
-        if self._intents is None:  # This isn't known yet, assume ALL
-            return hikari.Intents.ALL
+        if self._intents is None:
+            return hikari.Intents.ALL  # This isn't known yet, assume ALL.
 
         return self._intents
 
@@ -278,8 +278,8 @@ class Bot(hikari.GatewayBotAware):
 
     @property
     def shard_count(self) -> int:
-        if self._global_shard_count is None:  # This is unknown, return the local count
-            return self._local_shard_count
+        if self._global_shard_count is None:
+            return self._local_shard_count  # This isn't known yet, return the local count
 
         return self._global_shard_count
 
