@@ -84,7 +84,7 @@ class _ShardProxy(hikari.api.GatewayShard):
         raise NotImplementedError
 
     async def close(self) -> None:
-        raise RuntimeError("Cannot close proxied shard")
+        raise NotImplementedError("Cannot close proxied shard")
 
     async def join(self) -> None:
         if self._state is _protos.ShardState.STOPPED:
@@ -93,7 +93,7 @@ class _ShardProxy(hikari.api.GatewayShard):
         await self._close_event.wait()
 
     async def start(self) -> None:
-        raise RuntimeError("Cannot start proxied shard")
+        raise NotImplementedError("Cannot start proxied shard")
 
     async def update_presence(
         self,
@@ -181,7 +181,6 @@ class Bot(hikari.GatewayBotAware):
         "_entity_factory",
         "_event_factory",
         "_event_manager",
-        "_gateway_url",
         "_global_shard_count",
         "_http_settings",
         "_intents",
@@ -204,7 +203,6 @@ class Bot(hikari.GatewayBotAware):
         *,
         cache_settings: hikari.impl.CacheSettings | None = None,
         credentials: grpc.ChannelCredentials | None = None,
-        gateway_url: str,
         http_settings: hikari.impl.HTTPSettings | None = None,
         intents: hikari.Intents | int | None = None,
         proxy_settings: hikari.impl.ProxySettings | None = None,
@@ -224,7 +222,6 @@ class Bot(hikari.GatewayBotAware):
         self._event_manager = hikari.impl.EventManagerImpl(
             self._entity_factory, self._event_factory, hikari.Intents.ALL if self._intents is None else self._intents
         )
-        self._gateway_url = gateway_url
         self._global_shard_count = global_shard_count
         self._http_settings = http_settings or hikari.impl.HTTPSettings()
         self._local_shard_count = local_shard_count
@@ -390,7 +387,7 @@ class Bot(hikari.GatewayBotAware):
         await self._event_manager.dispatch(self._event_factory.deserialize_stopped_event())
         await self._rest.close()
 
-    def _make_shard(self, shard_id: int, /) -> hikari.impl.GatewayShardImpl:
+    def _make_shard(self, shard_state: _protos.Shard, /) -> hikari.impl.GatewayShardImpl:
         assert self._global_shard_count is not None
         assert self._intents is not None
         return hikari.impl.GatewayShardImpl(
@@ -399,10 +396,10 @@ class Bot(hikari.GatewayBotAware):
             http_settings=self._http_settings,
             intents=self._intents,
             proxy_settings=self._proxy_settings,
-            shard_id=shard_id,
+            shard_id=shard_state.shard_id,
             token=self._token,
             shard_count=self._global_shard_count,
-            url=self._gateway_url,
+            url=shard_state.gateway_url,
         )
 
     async def _spawn_shard(self) -> None:

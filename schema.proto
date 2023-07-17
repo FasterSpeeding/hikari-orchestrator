@@ -61,8 +61,7 @@ message Instruction {
         RequestGuildMembers request_guild_members = 4;
     };
     optional int64 shard_id = 5;
-    // optional int64 seq = 6
-    // optional string session_id = 7;
+    optional Shard shard_state = 6;
 }
 
 message ShardId {
@@ -84,6 +83,7 @@ message Shard {
     optional string session_id = 4;
     optional int64 seq = 5;
     int64 shard_id = 6;
+    string gateway_url = 7;
     // TODO: add presence here so it can be persisted
 }
 
