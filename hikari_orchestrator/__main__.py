@@ -29,3 +29,18 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
+
+import click
+
+from . import _service  # pyright: ignore[reportPrivateUsage]
+
+
+@click.command()
+@click.argument("address", envvar="ORCHESTRATOR_ADDRESS")
+@click.option("--token", envvar="DISCORD_TOKEN")
+def main(address: str, token: str) -> None:
+    _service.run_server(token, address)
+
+
+if __name__ == "__main__":
+    main()
