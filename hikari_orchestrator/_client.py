@@ -171,6 +171,9 @@ class Client:
 
         raise RuntimeError("Client not running")
 
+    async def get_config(self) -> _protos.Config:
+        return await self._get_live().orchestrator.GetConfig(_protos.Undefined())
+
     async def get_all_states(self) -> collections.Sequence[_protos.Shard]:
         return (await self._get_live().orchestrator.GetAllStates(_protos.Undefined())).shards
 

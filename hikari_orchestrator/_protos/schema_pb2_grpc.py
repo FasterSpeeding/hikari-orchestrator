@@ -44,6 +44,11 @@ class OrchestratorStub(object):
             request_serializer=schema__pb2.GatewayPayload.SerializeToString,
             response_deserializer=schema__pb2.Undefined.FromString,
         )
+        self.GetConfig = channel.unary_unary(
+            "/Orchestrator/GetConfig",
+            request_serializer=schema__pb2.Undefined.SerializeToString,
+            response_deserializer=schema__pb2.Config.FromString,
+        )
 
 
 class OrchestratorServicer(object):
@@ -85,6 +90,12 @@ class OrchestratorServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
+    def GetConfig(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
 
 def add_OrchestratorServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -117,6 +128,11 @@ def add_OrchestratorServicer_to_server(servicer, server):
             servicer.SendPayload,
             request_deserializer=schema__pb2.GatewayPayload.FromString,
             response_serializer=schema__pb2.Undefined.SerializeToString,
+        ),
+        "GetConfig": grpc.unary_unary_rpc_method_handler(
+            servicer.GetConfig,
+            request_deserializer=schema__pb2.Undefined.FromString,
+            response_serializer=schema__pb2.Config.SerializeToString,
         ),
     }
     generic_handler = grpc.method_handlers_generic_handler("Orchestrator", rpc_method_handlers)
@@ -291,6 +307,35 @@ class Orchestrator(object):
             "/Orchestrator/SendPayload",
             schema__pb2.GatewayPayload.SerializeToString,
             schema__pb2.Undefined.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+        )
+
+    @staticmethod
+    def GetConfig(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/Orchestrator/GetConfig",
+            schema__pb2.Undefined.SerializeToString,
+            schema__pb2.Config.FromString,
             options,
             channel_credentials,
             insecure,
