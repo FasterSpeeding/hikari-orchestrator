@@ -75,8 +75,17 @@ async def _release_after_5(semaphore: asyncio.BoundedSemaphore) -> None:
 
 
 class Orchestrator(_protos.OrchestratorServicer):
-    def __init__(self, token: str, shard_count: int, /, *, session_start_limit: hikari.SessionStartLimit) -> None:
+    def __init__(
+        self,
+        token: str,
+        shard_count: int,
+        /,
+        *,
+        intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
+        session_start_limit: hikari.SessionStartLimit,
+    ) -> None:
         self._buckets = {bucket: asyncio.BoundedSemaphore() for bucket in range(session_start_limit.max_concurrency)}
+        self._intents = intents
         self._shards: dict[int, _TrackedShard] = {shard_id: _TrackedShard(shard_id) for shard_id in range(shard_count)}
         self._shard_count_zfill = len(str(shard_count))
         self._tasks: list[asyncio.Task[None]] = []
@@ -192,6 +201,10 @@ class Orchestrator(_protos.OrchestratorServicer):
 
         return _protos.Undefined()
 
+    async def GetConfig(self, _: _protos.Undefined, __: grpc.ServicerContext) -> _protos.Config:
+        _LOGGER.debug("Shard %s: Received GetConfig request", self._char_fill("*"))
+        return _protos.Config(shard_count=len(self._shards), intents=self._intents)
+
 
 def _spawn_child(
     manager_address: str,
@@ -206,11 +219,11 @@ def _spawn_child(
     bot = _bot.Bot(
         manager_address,
         token,
-        global_shard_count,
-        local_shard_count,
         credentials=grpc.local_channel_credentials(),
         gateway_url=gateway_url,
         intents=intents,
+        global_shard_count=global_shard_count,
+        local_shard_count=local_shard_count,
     )
     if callback:
         callback(bot)

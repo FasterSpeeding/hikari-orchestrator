@@ -207,6 +207,14 @@ class GatewayPayload(_message.Message):
         request_guild_members: _Optional[_Union[RequestGuildMembers, _Mapping]] = ...,
     ) -> None: ...
 
+class Config(_message.Message):
+    __slots__ = ["shard_count", "intents"]
+    SHARD_COUNT_FIELD_NUMBER: _ClassVar[int]
+    INTENTS_FIELD_NUMBER: _ClassVar[int]
+    shard_count: int
+    intents: int
+    def __init__(self, *, shard_count: _Optional[int] = ..., intents: _Optional[int] = ...) -> None: ...
+
 class Undefined(_message.Message):
     __slots__ = []
     def __init__(self) -> None: ...

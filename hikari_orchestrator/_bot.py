@@ -167,27 +167,30 @@ class Bot(hikari.GatewayBotAware):
         self,
         manager_address: str,
         token: str,
-        global_shard_count: int,
-        local_shard_count: int,
         /,
         *,
         cache_settings: hikari.impl.CacheSettings | None = None,
         credentials: grpc.ChannelCredentials | None = None,
         gateway_url: str,
         http_settings: hikari.impl.HTTPSettings | None = None,
-        intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
+        intents: hikari.Intents | int | None = None,
         proxy_settings: hikari.impl.ProxySettings | None = None,
         rest_url: str = hikari.urls.REST_API_URL,
+        global_shard_count: int | None = None,
+        local_shard_count: int = 1,
     ) -> None:
         self._cache_settings = cache_settings or hikari.impl.CacheSettings()
         self._cache = hikari.impl.CacheImpl(self, self._cache_settings)
         self._close_event: asyncio.Event | None = None
         self._credentials = credentials
-        self._intents = hikari.Intents(intents)
+        self._intents = hikari.Intents(intents) if intents is not None else None
         self._entity_factory = hikari.impl.EntityFactoryImpl(self)
         # TODO: export at hikari.impl
         self._event_factory = hikari.impl.event_factory.EventFactoryImpl(self)
-        self._event_manager = hikari.impl.EventManagerImpl(self._entity_factory, self._event_factory, self._intents)
+        # Have to default intents here then hack in the real values later when intents is None.
+        self._event_manager = hikari.impl.EventManagerImpl(
+            self._entity_factory, self._event_factory, hikari.Intents.ALL if self._intents is None else self._intents
+        )
         self._fetch_task: asyncio.Task[None] | None = None
         self._gateway_url = gateway_url
         self._global_shard_count = global_shard_count
@@ -249,6 +252,9 @@ class Bot(hikari.GatewayBotAware):
 
     @property
     def intents(self) -> hikari.Intents:
+        if self._intents is None:
+            return hikari.Intents.ALL  # This isn't known yet, assume ALL.
+
         return self._intents
 
     @property
@@ -272,6 +278,9 @@ class Bot(hikari.GatewayBotAware):
 
     @property
     def shard_count(self) -> int:
+        if self._global_shard_count is None:
+            return self._local_shard_count  # This isn't known yet, return the local count
+
         return self._global_shard_count
 
     def get_me(self) -> hikari.OwnUser | None:
@@ -345,6 +354,8 @@ class Bot(hikari.GatewayBotAware):
         await self._rest.close()
 
     def _make_shard(self, shard_id: int, /) -> hikari.impl.GatewayShardImpl:
+        assert self._global_shard_count is not None
+        assert self._intents is not None
         return hikari.impl.GatewayShardImpl(
             event_factory=self._event_factory,
             event_manager=self._event_manager,
@@ -374,6 +385,20 @@ class Bot(hikari.GatewayBotAware):
 
         self._close_event = asyncio.Event()
         await self._manager.start(self._manager_address, credentials=self._credentials)
+
+        if self._global_shard_count is None or self._intents is None:
+            config = await self._manager.get_config()
+            if self._global_shard_count is None:
+                self._global_shard_count = config.shard_count
+
+            if self._intents is None:
+                self._intents = hikari.Intents(config.intents)
+                # TODO: find better work-around.
+                self._event_manager._intents = self._intents  # pyright: ignore[reportPrivateUsage]
+
+        # TODO: is there a smarter way to handle this?
+        if self._local_shard_count > self._global_shard_count:
+            raise RuntimeError("Local shard count can't be greater than the global shard count")
 
         proxied_shards: dict[int, _ShardProxy] = {}
         local_shards = range(self._local_shard_count)

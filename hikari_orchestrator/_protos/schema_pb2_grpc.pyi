@@ -12,6 +12,7 @@ class OrchestratorStub:
     async def GetState(self, shard_id: schema__pb2.ShardId, /) -> schema__pb2.Shard: ...
     async def SendPayload(self, payload: schema__pb2.GatewayPayload, /) -> schema__pb2.Undefined: ...
     async def GetAllStates(self, undefined: schema__pb2.Undefined, /) -> schema__pb2.AllShards: ...
+    async def GetConfig(self, undefined: schema__pb2.Undefined, /) -> schema__pb2.Config: ...
 
 class OrchestratorServicer:
     def Acquire(
@@ -30,6 +31,9 @@ class OrchestratorServicer:
     async def GetAllStates(
         self, undefined: schema__pb2.Undefined, context: grpc.ServicerContext, /
     ) -> schema__pb2.AllShards: ...
+    async def GetConfig(
+        self, undefined: schema__pb2.Undefined, context: grpc.ServicerContext, /
+    ) -> schema__pb2.Config: ...
 
 def add_OrchestratorServicer_to_server(
     servicer: OrchestratorServicer, server: grpc.Server | grpc.aio.Server
@@ -80,6 +84,19 @@ class Orchestrator(object):
     ) -> object: ...
     @staticmethod
     def SendPayload(
+        request: object,
+        target: object,
+        options: object = (),
+        channel_credentials: object = None,
+        call_credentials: object = None,
+        insecure: object = False,
+        compression: object = None,
+        wait_for_ready: object = None,
+        timeout: object = None,
+        metadata: object = None,
+    ) -> object: ...
+    @staticmethod
+    def GetConfig(
         request: object,
         target: object,
         options: object = (),
