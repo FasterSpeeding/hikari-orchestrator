@@ -93,6 +93,7 @@ class _TrackedShard:
         await self.stream.write(state)
 
     async def _on_ready(self, event: hikari.ShardReadyEvent) -> None:
+        # TODO: can we update this earlier?
         self.gateway_url = event.resume_gateway_url
         await self.update_status()
 
@@ -225,6 +226,7 @@ class Client:
         )
 
         try:
+            # TODO: handle RuntimeError from failing to start better
             await shard.start()
 
             tracked_shard.instructions_task = asyncio.create_task(_handle_instructions(tracked_shard))
