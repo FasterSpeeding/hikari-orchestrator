@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Utilities",
     "Typing :: Typed",
 ]
-dependencies = ["grpcio>=1, <2", "grpcio-tools>=1, <2", "hikari>=2.0.0.dev116, <3"]
+dependencies = ["grpcio>=1, <2", "click>=8, <9", "grpcio-tools>=1, <2", "hikari>=2.0.0.dev116, <3"]
 dynamic = ["description"]
 
 [project.urls]
