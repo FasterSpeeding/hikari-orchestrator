@@ -396,6 +396,10 @@ class Bot(hikari.GatewayBotAware):
                 # TODO: find better work-around.
                 self._event_manager._intents = self._intents  # pyright: ignore[reportPrivateUsage]
 
+        # TODO: is there a smarter way to handle this?
+        if self._local_shard_count > self._global_shard_count:
+            raise RuntimeError("Local shard count can't be greater than the global shard count")
+
         proxied_shards: dict[int, _ShardProxy] = {}
         local_shards = range(self._local_shard_count)
         for shard_id in range(self._global_shard_count):
