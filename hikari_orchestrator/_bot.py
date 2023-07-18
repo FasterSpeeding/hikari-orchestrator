@@ -41,7 +41,7 @@ import hikari
 import hikari.impl.event_factory  # TODO: export at hikari.impl
 import hikari.urls
 
-from . import _client
+from . import _client  # type: ignore[reportPrivateUsage]
 from . import _protos
 
 
