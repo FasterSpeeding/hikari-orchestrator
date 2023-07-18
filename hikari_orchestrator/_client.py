@@ -409,4 +409,5 @@ def _or_undefined(value: hikari.UndefinedOr[_T]) -> tuple[_T | None, _protos.Und
 
     return value, None
 
+
 # TODO: handle disconnects properly
