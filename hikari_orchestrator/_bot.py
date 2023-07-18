@@ -138,7 +138,7 @@ class _ShardProxy(hikari.api.GatewayShard):
             self._close_event.clear()
 
 
-class _ProxiedShards:
+class ProxiedShards:
     __slots__ = ("_manager", "_shards", "_state_task")
 
     def __init__(self, manager: _client.Client, shards: collections.Mapping[int, _ShardProxy], /) -> None:
@@ -167,7 +167,7 @@ async def proxy_shards(address: str, shards: collections.Collection[int], /) -> 
     await manager.start(address)
     config = await manager.get_config()
     intents = hikari.Intents(config.intents)
-    return _ProxiedShards(
+    return ProxiedShards(
         manager, {shard_id: _ShardProxy(manager, shard_id, intents, config.shard_count) for shard_id in shards}
     )
 
@@ -226,7 +226,7 @@ class Bot(hikari.GatewayBotAware):
         self._http_settings = http_settings or hikari.impl.HTTPSettings()
         self._local_shard_count = local_shard_count
         self._manager_address = manager_address
-        self._proxied_shards: _ProxiedShards | None = None
+        self._proxied_shards: ProxiedShards | None = None
         self._proxy_settings = proxy_settings or hikari.impl.ProxySettings()
         self._rest = hikari.impl.RESTClientImpl(
             cache=self._cache,
@@ -376,7 +376,7 @@ class Bot(hikari.GatewayBotAware):
         assert self._proxied_shards
         proxied_shards = self._proxied_shards.shards
         await self._event_manager.dispatch(self._event_factory.deserialize_stopping_event())
-        # _ProxiedShards.stop also stops the manager
+        # ProxiedShards.stop also stops the manager
         await self._proxied_shards.stop()
         self._proxied_shards = None
         await self._voice.close()
@@ -435,7 +435,7 @@ class Bot(hikari.GatewayBotAware):
                     self._manager, shard_id, self._intents, self._global_shard_count
                 )
 
-        self._proxied_shards = _ProxiedShards(self._manager, proxied_shards)
+        self._proxied_shards = ProxiedShards(self._manager, proxied_shards)
         self._voice.start()
         self._rest.start()
         await self._event_manager.dispatch(self._event_factory.deserialize_starting_event())
