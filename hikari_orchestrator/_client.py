@@ -169,8 +169,8 @@ class Client:
         # TODO: track when this is closing to not allow multiple concurrent calls calls
         await asyncio.gather(shard.disconnect() for shard in self._tracked_shards.values())
         self._tracked_shards.clear()
-        await self._attributes.channel.close()
         self._remote_shards.clear()
+        await self._attributes.channel.close()
         self._attributes = None
 
     async def acquire_shard(self, shard: hikari.api.GatewayShard, /) -> None:
@@ -402,13 +402,6 @@ class _RemoteShard(hikari.api.GatewayShard):
             guild, include_presences=include_presences, query=query, limit=limit, users=users, nonce=nonce
         )
 
-    def update_state(self, state: _protos.Shard, /) -> None:
-        self._state = state
-        if self._state.state is not _protos.ShardState.STOPPED and state.state is _protos.ShardState.STOPPED:
-            self._close_event.set()
-
-        else:
-            self._close_event.clear()
 
 
 def _or_undefined(value: hikari.UndefinedOr[_T]) -> tuple[_T | None, _protos.Undefined | None]:
