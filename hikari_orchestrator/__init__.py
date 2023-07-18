@@ -34,7 +34,7 @@ from __future__ import annotations
 __all__ = ["Bot", "proxy_shards", "run_server", "run_subprocesses", "spawn_subprocesses"]
 
 from ._bot import Bot
-from ._bot import ProxiedShards  # pyright: ignore[reportUnusedImport]  # noqa: F401
+from ._bot import ProxiedShards as ProxiedShards  # noqa: F401
 from ._bot import proxy_shards
 from ._service import run_server
 from ._service import run_subprocesses
