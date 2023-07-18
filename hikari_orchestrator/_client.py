@@ -403,7 +403,6 @@ class _RemoteShard(hikari.api.GatewayShard):
         )
 
 
-
 def _or_undefined(value: hikari.UndefinedOr[_T]) -> tuple[_T | None, _protos.Undefined | None]:
     if value is hikari.UNDEFINED:
         return None, _protos.Undefined()
