@@ -58,7 +58,6 @@ def _now() -> timestamp_pb2.Timestamp:
 
 @dataclasses.dataclass(slots=True)
 class _TrackedShard:
-    live_attributes: _LiveAttributes
     shard: hikari.api.GatewayShard
     stream: _StreamT
     gateway_url: str
@@ -66,7 +65,6 @@ class _TrackedShard:
     status_task: asyncio.Task[None] | None = None
 
     async def disconnect(self) -> None:
-        self.live_attributes.shards.pop(self.shard.id)
         if self.status_task:
             self.status_task.cancel()
 
@@ -102,7 +100,6 @@ class _TrackedShard:
 class _LiveAttributes:
     channel: grpc.aio.Channel
     orchestrator: _protos.OrchestratorStub
-    shards: dict[int, _TrackedShard] = dataclasses.field(default_factory=dict)
 
 
 # TODO: check this implicitly also works for UndefinedNoneOr fields.
@@ -117,49 +114,6 @@ def _maybe_undefined(
     return field_value
 
 
-async def _handle_instructions(shard: _TrackedShard, /) -> None:
-    async for instruction in shard.stream:
-        if instruction.type is _protos.InstructionType.DISCONNECT:
-            await shard.disconnect()
-            break
-
-        elif instruction.type is not _protos.InstructionType.GATEWAY_PAYLOAD:
-            continue  # TODO: log
-
-        match instruction.WhichOneof("payload"):
-            case "presence_update":
-                status = instruction.presence_update.status
-                idle_since = _maybe_undefined(
-                    instruction.presence_update, "idle_since", instruction.presence_update.idle_timestamp
-                )
-                afk = instruction.presence_update.afk
-                activity = _maybe_undefined(
-                    instruction.presence_update, "activity", instruction.presence_update.activity_payload
-                )
-                if activity:
-                    activity = hikari.Activity(name=activity.name, url=activity.url, type=activity.type)
-
-                await shard.shard.update_presence(
-                    idle_since=idle_since.ToDatetime() if idle_since else idle_since,
-                    afk=hikari.UNDEFINED if afk is None else afk,
-                    activity=activity,
-                    status=hikari.UNDEFINED if status is None else hikari.Status(status),
-                )
-
-            case "voice_state":
-                self_deaf = instruction.voice_state.self_deaf
-                self_mute = instruction.voice_state.self_mute
-                await shard.shard.update_voice_state(
-                    guild=instruction.voice_state.guild_id,
-                    channel=instruction.voice_state.channel_id,
-                    self_deaf=hikari.UNDEFINED if self_deaf is None else self_deaf,
-                    self_mute=hikari.UNDEFINED if self_mute is None else self_mute,
-                )
-
-            case _:
-                pass  # TODO: log
-
-
 async def _handle_status(shard: _TrackedShard, /) -> None:
     while True:
         await asyncio.sleep(30)
@@ -167,16 +121,22 @@ async def _handle_status(shard: _TrackedShard, /) -> None:
 
 
 class Client:
-    __slots__ = ("_attributes",)
+    __slots__ = ("_attributes", "_remote_shards", "_tracked_shards")
 
     def __init__(self) -> None:
         self._attributes: _LiveAttributes | None = None
+        self._remote_shards: dict[int, _RemoteShard] = {}
+        self._tracked_shards: dict[int, _TrackedShard] = dataclasses.field(default_factory=dict)
 
     def _get_live(self) -> _LiveAttributes:
         if self._attributes:
             return self._attributes
 
         raise RuntimeError("Client not running")
+
+    @property
+    def remote_shards(self) -> collections.Mapping[int, hikari.api.GatewayShard]:
+        return self._remote_shards
 
     async def get_config(self) -> _protos.Config:
         return await self._get_live().orchestrator.GetConfig(_protos.Undefined())
@@ -196,15 +156,22 @@ class Client:
             channel = grpc.aio.insecure_channel(target)
 
         self._attributes = _LiveAttributes(channel, _protos.OrchestratorStub(channel))
+        config = await self.get_config()
+        for shard_id in range(config.shard_count):
+            self._remote_shards[shard_id] = _RemoteShard(
+                self, shard_id, hikari.Intents(config.intents), config.shard_count
+            )
 
     async def stop(self) -> None:
         if not self._attributes:
             raise RuntimeError("Not running")
 
-        attributes = self._attributes
+        # TODO: track when this is closing to not allow multiple concurrent calls calls
+        await asyncio.gather(shard.disconnect() for shard in self._tracked_shards.values())
+        self._tracked_shards.clear()
+        await self._attributes.channel.close()
+        self._remote_shards.clear()
         self._attributes = None
-        await asyncio.gather(shard.disconnect() for shard in attributes.shards.values())
-        await attributes.channel.close()
 
     async def acquire_shard(self, shard: hikari.api.GatewayShard, /) -> None:
         raise NotImplementedError
@@ -222,15 +189,15 @@ class Client:
             raise NotImplementedError(instruction.type)
 
         shard = make_shard(instruction.shard_state)
-        live_attrs.shards[instruction.shard_id] = tracked_shard = _TrackedShard(
-            live_attrs, shard, stream, instruction.shard_state.gateway_url
+        self._tracked_shards[instruction.shard_id] = tracked_shard = _TrackedShard(
+            shard, stream, instruction.shard_state.gateway_url
         )
 
         try:
             # TODO: handle RuntimeError from failing to start better
             await shard.start()
 
-            tracked_shard.instructions_task = asyncio.create_task(_handle_instructions(tracked_shard))
+            tracked_shard.instructions_task = asyncio.create_task(self._handle_instructions(tracked_shard))
             tracked_shard.status_task = asyncio.create_task(_handle_status(tracked_shard))
 
         except Exception:  # This currently may raise an error which can't be pickled
@@ -241,8 +208,48 @@ class Client:
 
         return shard
 
-    async def close_shard(self, shard_id: int, /) -> None:
-        await self._get_live().shards[shard_id].disconnect()
+    async def _handle_instructions(self, shard: _TrackedShard, /) -> None:
+        async for instruction in shard.stream:
+            if instruction.type is _protos.InstructionType.DISCONNECT:
+                self._tracked_shards.pop(shard.shard.id)
+                await shard.disconnect()
+                break
+
+            elif instruction.type is not _protos.InstructionType.GATEWAY_PAYLOAD:
+                continue  # TODO: log
+
+            match instruction.WhichOneof("payload"):
+                case "presence_update":
+                    status = instruction.presence_update.status
+                    idle_since = _maybe_undefined(
+                        instruction.presence_update, "idle_since", instruction.presence_update.idle_timestamp
+                    )
+                    afk = instruction.presence_update.afk
+                    activity = _maybe_undefined(
+                        instruction.presence_update, "activity", instruction.presence_update.activity_payload
+                    )
+                    if activity:
+                        activity = hikari.Activity(name=activity.name, url=activity.url, type=activity.type)
+
+                    await shard.shard.update_presence(
+                        idle_since=idle_since.ToDatetime() if idle_since else idle_since,
+                        afk=hikari.UNDEFINED if afk is None else afk,
+                        activity=activity,
+                        status=hikari.UNDEFINED if status is None else hikari.Status(status),
+                    )
+
+                case "voice_state":
+                    self_deaf = instruction.voice_state.self_deaf
+                    self_mute = instruction.voice_state.self_mute
+                    await shard.shard.update_voice_state(
+                        guild=instruction.voice_state.guild_id,
+                        channel=instruction.voice_state.channel_id,
+                        self_deaf=hikari.UNDEFINED if self_deaf is None else self_deaf,
+                        self_mute=hikari.UNDEFINED if self_mute is None else self_mute,
+                    )
+
+                case _:
+                    pass  # TODO: log
 
     async def update_presence(
         self,
@@ -309,6 +316,99 @@ class Client:
             nonce=None if nonce is hikari.UNDEFINED else nonce,
         )
         await self._get_live().orchestrator.SendPayload(_protos.GatewayPayload(request_guild_members=request))
+
+
+class _RemoteShard(hikari.api.GatewayShard):
+    __slots__ = ("_close_event", "_shard_count", "_id", "_intents", "_manager", "_state")
+
+    def __init__(self, manager: Client, shard_id: int, intents: hikari.Intents, shard_count: int, /) -> None:
+        self._close_event = asyncio.Event()
+        self._shard_count = shard_count
+        self._id = shard_id
+        self._intents = intents
+        self._manager = manager
+        self._state: _protos.Shard | None = None
+
+    @property
+    def heartbeat_latency(self) -> float:
+        return self._state.latency if self._state else float("nan")
+
+    @property
+    def id(self) -> int:
+        return self._id
+
+    @property
+    def intents(self) -> hikari.Intents:
+        return self._intents
+
+    @property
+    def is_alive(self) -> bool:
+        return bool(self._state and self._state.state is not _protos.ShardState.STOPPED)
+
+    @property
+    def is_connected(self) -> bool:
+        return bool(self._state and self._state.state is _protos.ShardState.STARTED)
+
+    @property
+    def shard_count(self) -> int:
+        return self._shard_count
+
+    def get_user_id(self) -> hikari.Snowflake:
+        raise NotImplementedError
+
+    async def close(self) -> None:
+        raise NotImplementedError("Cannot close remove shards")
+
+    async def join(self) -> None:
+        if self._state is _protos.ShardState.STOPPED:
+            raise hikari.ComponentStateConflictError("Shard isn't running")
+
+        await self._close_event.wait()
+
+    async def start(self) -> None:
+        raise NotImplementedError("Cannot start remote shards")
+
+    async def update_presence(
+        self,
+        *,
+        idle_since: hikari.UndefinedNoneOr[datetime.datetime] = hikari.UNDEFINED,
+        afk: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+        activity: hikari.UndefinedNoneOr[hikari.Activity] = hikari.UNDEFINED,
+        status: hikari.UndefinedOr[hikari.Status] = hikari.UNDEFINED,
+    ) -> None:
+        await self._manager.update_presence(idle_since=idle_since, afk=afk, activity=activity, status=status)
+
+    async def update_voice_state(
+        self,
+        guild: hikari.SnowflakeishOr[hikari.PartialGuild],
+        channel: hikari.SnowflakeishOr[hikari.GuildVoiceChannel] | None,
+        *,
+        self_mute: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+        self_deaf: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+    ) -> None:
+        await self._manager.update_voice_state(guild, channel, self_mute=self_mute, self_deaf=self_deaf)
+
+    async def request_guild_members(
+        self,
+        guild: hikari.SnowflakeishOr[hikari.PartialGuild],
+        *,
+        include_presences: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
+        query: str = "",
+        limit: int = 0,
+        users: hikari.UndefinedOr[hikari.SnowflakeishSequence[hikari.User]] = hikari.UNDEFINED,
+        nonce: hikari.UndefinedOr[str] = hikari.UNDEFINED,
+    ) -> None:
+        await self._manager.request_guild_members(
+            guild, include_presences=include_presences, query=query, limit=limit, users=users, nonce=nonce
+        )
+
+    def update_state(self, state: _protos.Shard, /) -> None:
+        self._state = state
+        if self._state.state is not _protos.ShardState.STOPPED and state.state is _protos.ShardState.STOPPED:
+            self._close_event.set()
+
+        else:
+            self._close_event.clear()
 
 
 def _or_undefined(value: hikari.UndefinedOr[_T]) -> tuple[_T | None, _protos.Undefined | None]:
