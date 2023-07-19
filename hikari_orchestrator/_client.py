@@ -156,6 +156,7 @@ class Client:
             channel = grpc.aio.insecure_channel(target)
 
         self._attributes = _LiveAttributes(channel, _protos.OrchestratorStub(channel))
+        # TODO: can this value be cached?
         config = await self.get_config()
         for shard_id in range(config.shard_count):
             self._remote_shards[shard_id] = _RemoteShard(
