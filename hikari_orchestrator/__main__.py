@@ -30,6 +30,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
+import io
+
 import click
 import dotenv
 
@@ -39,8 +41,24 @@ from . import _service  # pyright: ignore[reportPrivateUsage]
 @click.command()
 @click.argument("address", default="localhost:0", envvar="ORCHESTRATOR_ADDRESS")
 @click.option("--token", envvar="DISCORD_TOKEN", required=True)
-def main(address: str, token: str) -> None:
-    _service.run_server(token, address)
+@click.option("--ca-cert", default=None, envvar="ORCHESTRATOR_CA_CERT", type=click.File("rb"))
+@click.option("--private-key", default=None, envvar="ORCHESTRATOR_PRIVATE_KEY", type=click.File("rb"))
+def main(address: str, token: str, ca_cert: io.BytesIO | None, private_key: io.BytesIO | None) -> None:
+    if ca_cert:
+        ca_cert_data = ca_cert.read()
+        ca_cert.close()
+
+    else:
+        ca_cert_data = None
+
+    if private_key:
+        private_key_data = private_key.read()
+        private_key.close()
+
+    else:
+        private_key_data = None
+
+    _service.run_server(token, address, ca_cert=ca_cert_data, private_key=private_key_data)
 
 
 if __name__ == "__main__":
