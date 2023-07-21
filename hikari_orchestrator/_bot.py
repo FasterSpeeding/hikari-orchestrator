@@ -36,7 +36,6 @@ import datetime
 import math
 from collections import abc as collections
 
-import grpc  # type: ignore
 import hikari
 import hikari.impl.event_factory  # TODO: export at hikari.impl
 import hikari.urls
@@ -49,8 +48,8 @@ class Bot(hikari.GatewayBotAware):
     __slots__ = (
         "_cache_settings",
         "_cache",
+        "_ca_cert",
         "_close_event",
-        "_credentials",
         "_entity_factory",
         "_event_factory",
         "_event_manager",
@@ -75,7 +74,7 @@ class Bot(hikari.GatewayBotAware):
         /,
         *,
         cache_settings: hikari.impl.CacheSettings | None = None,
-        credentials: grpc.ChannelCredentials | None = None,
+        ca_cert: bytes | None = None,
         http_settings: hikari.impl.HTTPSettings | None = None,
         intents: hikari.Intents | int | None = None,
         proxy_settings: hikari.impl.ProxySettings | None = None,
@@ -85,8 +84,8 @@ class Bot(hikari.GatewayBotAware):
     ) -> None:
         self._cache_settings = cache_settings or hikari.impl.CacheSettings()
         self._cache = hikari.impl.CacheImpl(self, self._cache_settings)
+        self._ca_cert = ca_cert
         self._close_event: asyncio.Event | None = None
-        self._credentials = credentials
         self._intents = hikari.Intents(intents) if intents is not None else None
         self._entity_factory = hikari.impl.EntityFactoryImpl(self)
         # TODO: export at hikari.impl
@@ -278,7 +277,7 @@ class Bot(hikari.GatewayBotAware):
             raise hikari.ComponentStateConflictError("Already running")
 
         self._close_event = asyncio.Event()
-        await self._manager.start(self._manager_address, credentials=self._credentials)
+        await self._manager.start(self._manager_address, ca_cert=self._ca_cert)
         self._shards.update(self._manager.remote_shards)
 
         if self._global_shard_count is None or self._intents is None:

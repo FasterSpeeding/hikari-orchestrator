@@ -36,6 +36,8 @@ import datetime
 import logging
 import math
 import os
+import socket
+import uuid
 from collections import abc as collections
 
 import grpc.aio  # type: ignore
@@ -44,6 +46,7 @@ from google.protobuf import timestamp_pb2
 
 from . import _bot  # pyright: ignore[reportPrivateUsage]
 from . import _protos
+from . import _ssl
 
 _LOGGER = logging.getLogger("hikari.orchestrator")
 
@@ -227,13 +230,13 @@ def _spawn_child(
     global_shard_count: int,
     local_shard_count: int,
     callback: collections.Callable[[hikari.GatewayBotAware], None] | None,
-    # credentials: grpc.ChannelCredentials | None,  # TODO: Can't be pickled
+    ca_cert: bytes | None,
     intents: hikari.Intents | int,
 ) -> None:
     bot = _bot.Bot(
         manager_address,
         token,
-        credentials=grpc.local_channel_credentials(),
+        ca_cert=ca_cert,
         intents=intents,
         global_shard_count=global_shard_count,
         local_shard_count=local_shard_count,
@@ -261,24 +264,37 @@ async def _spawn_server(
     address: str,
     /,
     *,
-    credentials: grpc.ServerCredentials | None = None,
     gateway_info: hikari.GatewayBotInfo | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
+    private_key: bytes | None = None,
+    ca_cert: bytes | None = None,
     shard_count: int | None = None,
-) -> tuple[int, grpc.aio.Server]:
+) -> tuple[int | None, grpc.aio.Server]:
     gateway_info = gateway_info or await _fetch_bot_info(token)
     orchestrator = Orchestrator(token, gateway_info, shard_count=shard_count, intents=intents)
 
     server = grpc.aio.server()
     _protos.add_OrchestratorServicer_to_server(orchestrator, server)
 
-    if credentials:
+    if private_key and ca_cert:
+        # token_header = grpc.access_token_call_credentials(token)
+        # grpc.composite_call_credentials(credentials, token_header)
+        credentials = grpc.ssl_server_credentials([(private_key, ca_cert)])
         port = server.add_secure_port(address, credentials)
+
+    elif private_key or ca_cert:
+        raise RuntimeError("private_key and ca_cert must be both passed")
 
     else:
         port = server.add_insecure_port(address)
 
-    _LOGGER.info("Starting server at %s:%s", address.rsplit(":", 1)[0], port)
+    if address.startswith("unix"):
+        port = None
+        _LOGGER.info("Starting server at %s", address)
+
+    else:
+        _LOGGER.info("Starting server at %s:%s", address.rsplit(":", 1)[0], port)
+
     await server.start()
     return port, server
 
@@ -288,15 +304,22 @@ def run_server(
     address: str,
     /,
     *,
-    credentials: grpc.ServerCredentials | None = None,
     gateway_info: hikari.GatewayBotInfo | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
+    private_key: bytes | None = None,
+    ca_cert: bytes | None = None,
     shard_count: int | None = None,
 ) -> None:
     loop = asyncio.new_event_loop()
     _, server = loop.run_until_complete(
         _spawn_server(
-            token, address, credentials=credentials, gateway_info=gateway_info, intents=intents, shard_count=shard_count
+            token,
+            address,
+            ca_cert=ca_cert,
+            gateway_info=gateway_info,
+            intents=intents,
+            private_key=private_key,
+            shard_count=shard_count,
         )
     )
     loop.run_until_complete(server.wait_for_termination())
@@ -322,19 +345,41 @@ async def spawn_subprocesses(
     else:
         local_shard_count = math.ceil(local_shard_count)
 
+    if hasattr(socket, "AF_UNIX"):
+        ca_cert = None
+        private_key = None
+        server_address = f"unix-abstract:{uuid.uuid4().hex}"
+
+    else:
+        ca_cert, private_key = _ssl.gen_ca()
+        server_address = "localhost:0"
+
     port, server = await _spawn_server(
         token,
-        "localhost:0",
-        credentials=grpc.local_server_credentials(),
+        server_address,
         gateway_info=gateway_info,
         intents=intents,
+        private_key=private_key,
+        ca_cert=ca_cert,
         shard_count=global_shard_count,
     )
+
+    if port is not None:
+        server_address = f"localhost:{port}"
+
     executor = concurrent.futures.ProcessPoolExecutor()
     loop = asyncio.get_running_loop()
     for _ in range(subprocess_count):
         loop.run_in_executor(
-            executor, _spawn_child, f"localhost:{port}", token, global_shard_count, local_shard_count, callback, intents
+            executor,
+            _spawn_child,
+            server_address,
+            token,
+            global_shard_count,
+            local_shard_count,
+            callback,
+            ca_cert,
+            intents,
         )
 
     await server.wait_for_termination()

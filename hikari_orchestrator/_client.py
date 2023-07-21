@@ -145,12 +145,12 @@ class Client:
         return (await self._get_live().orchestrator.GetAllStates(_protos.Undefined())).shards
 
     # TODO: move both args to `__init__`.
-    async def start(self, target: str, /, *, credentials: grpc.ChannelCredentials | None = None) -> None:
+    async def start(self, target: str, /, *, ca_cert: bytes | None = None) -> None:
         if self._attributes:
             raise RuntimeError("Already running")
 
-        if credentials:
-            channel = grpc.aio.secure_channel(target, credentials)
+        if ca_cert:
+            channel = grpc.aio.secure_channel(target, grpc.ssl_channel_credentials(ca_cert))
 
         else:
             channel = grpc.aio.insecure_channel(target)
