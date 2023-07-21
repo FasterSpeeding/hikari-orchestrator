@@ -126,7 +126,7 @@ class Client:
     def __init__(self) -> None:
         self._attributes: _LiveAttributes | None = None
         self._remote_shards: dict[int, _RemoteShard] = {}
-        self._tracked_shards: dict[int, _TrackedShard] = dataclasses.field(default_factory=dict)
+        self._tracked_shards: dict[int, _TrackedShard] = {}
 
     def _get_live(self) -> _LiveAttributes:
         if self._attributes:
