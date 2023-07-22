@@ -33,10 +33,13 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import datetime
+import hashlib
 import logging
 import math
 import os
+import secrets
 import socket
+import typing
 import uuid
 from collections import abc as collections
 
@@ -76,6 +79,32 @@ class _TrackedShard:
 async def _release_after_5(semaphore: asyncio.BoundedSemaphore) -> None:
     await asyncio.sleep(5)
     semaphore.release()
+
+
+def hash_token(token: str) -> str:
+    return hashlib.scrypt(token.encode(), salt=token.rsplit(".", 1)[-1].encode(), n=2048, r=8, p=1).hex()
+
+
+class _AuthInterceptor(grpc.aio.ServerInterceptor):
+    def __init__(self, token: str, /) -> None:
+        self._token_hash = hash_token(token)
+
+    async def intercept_service(
+        self,
+        continuation: collections.Callable[[grpc.HandlerCallDetails], collections.Awaitable[grpc.RpcMethodHandler]],
+        handler_call_details: grpc.HandlerCallDetails,
+    ) -> grpc.RpcMethodHandler:
+        authorisation = typing.cast(
+            "str | None", dict(handler_call_details.invocation_metadata).get("authorization")  # type: ignore
+        )
+
+        if not authorisation or not secrets.compare_digest(
+            self._token_hash, authorisation.removeprefix("Bearer ")  # "token "
+        ):
+            raise KeyError("Invalid auth")
+
+        # abort_with_status?
+        return await continuation(handler_call_details)
 
 
 class Orchestrator(_protos.OrchestratorServicer):
@@ -273,7 +302,7 @@ async def _spawn_server(
     gateway_info = gateway_info or await _fetch_bot_info(token)
     orchestrator = Orchestrator(token, gateway_info, shard_count=shard_count, intents=intents)
 
-    server = grpc.aio.server()
+    server = grpc.aio.server(interceptors=[_AuthInterceptor(token)])
     _protos.add_OrchestratorServicer_to_server(orchestrator, server)
 
     if private_key and ca_cert:

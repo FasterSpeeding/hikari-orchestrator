@@ -31,10 +31,10 @@
 from __future__ import annotations
 
 import asyncio
+import collections.abc
 import dataclasses
 import datetime
 import typing
-from collections import abc as collections
 
 import grpc.aio  # type: ignore
 import hikari
@@ -46,6 +46,11 @@ if typing.TYPE_CHECKING:
     import google.protobuf.message
 
     _T = typing.TypeVar("_T")
+    _CoroT = collections.abc.Coroutine[typing.Any, typing.Any, _T]
+    _ResponseType = typing.TypeVar("_ResponseType")
+    _RequestType = typing.TypeVar("_RequestType")
+    _RequestIterableType = collections.abc.Iterable[typing.Any] | collections.abc.AsyncIterable[typing.Any]
+    _ResponseIterableType = collections.abc.AsyncIterable[typing.Any]
     _ShardT = typing.TypeVar("_ShardT", bound=hikari.api.GatewayShard)
     _StreamT = grpc.aio.StreamStreamCall[_protos.Shard, _protos.Instruction]
 
@@ -120,12 +125,80 @@ async def _handle_status(shard: _TrackedShard, /) -> None:
         await shard.update_status()
 
 
-class Client:
-    __slots__ = ("_attributes", "_remote_shards", "_tracked_shards")
+class _AuthIntercceptor(
+    grpc.aio.UnaryUnaryClientInterceptor,
+    grpc.aio.StreamUnaryClientInterceptor,
+    grpc.aio.UnaryStreamClientInterceptor,
+    grpc.aio.StreamStreamClientInterceptor,
+):
+    def __init__(self, token: str, /) -> None:
+        self._token = "token " + _service.hash_token(token)
 
-    def __init__(self) -> None:
+    def _append_headers(self, client_call_details: grpc.aio.ClientCallDetails, /) -> grpc.aio.ClientCallDetails:
+        credentials = grpc.access_token_call_credentials(self._token)
+        if client_call_details:
+            credentials = grpc.composite_call_credentials(client_call_details.credentials, credentials)
+
+        return grpc.aio.ClientCallDetails(
+            client_call_details.method,
+            client_call_details.timeout,
+            client_call_details.metadata,
+            credentials,
+            client_call_details.wait_for_ready,
+        )
+
+    async def intercept_stream_stream(  # type: ignore
+        self,
+        continuation: collections.abc.Callable[
+            [grpc.aio.ClientCallDetails, _RequestType], _CoroT[grpc.aio.StreamStreamCall[_RequestType, _ResponseType]]
+        ],
+        client_call_details: grpc.aio.ClientCallDetails,
+        request_iterator: _RequestType,
+    ) -> _ResponseIterableType | grpc.aio.StreamStreamCall[_RequestType, _ResponseType]:
+        client_call_details = self._append_headers(client_call_details)
+        return await continuation(client_call_details, request_iterator)
+
+    async def intercept_stream_unary(  # type: ignore
+        self,
+        continuation: collections.abc.Callable[
+            [grpc.aio.ClientCallDetails, _RequestType], _CoroT[grpc.aio.StreamUnaryCall[_RequestType, _ResponseType]]
+        ],
+        client_call_details: grpc.aio.ClientCallDetails,
+        request_iterator: _RequestType,
+    ) -> grpc.aio.StreamUnaryCall[_RequestType, _ResponseType]:
+        client_call_details = self._append_headers(client_call_details)
+        return await continuation(client_call_details, request_iterator)
+
+    async def intercept_unary_stream(  # type: ignore
+        self,
+        continuation: collections.abc.Callable[
+            [grpc.aio.ClientCallDetails, _RequestType], _CoroT[grpc.aio.UnaryStreamCall[_RequestType, _ResponseType]]
+        ],
+        client_call_details: grpc.aio.ClientCallDetails,
+        request: _RequestType,
+    ) -> _ResponseIterableType | grpc.aio.UnaryStreamCall[_RequestType, _ResponseType]:
+        client_call_details = self._append_headers(client_call_details)
+        return await continuation(client_call_details, request)
+
+    async def intercept_unary_unary(  # type: ignore
+        self,
+        continuation: collections.abc.Callable[
+            [grpc.aio.ClientCallDetails, _RequestType], _CoroT[grpc.aio.UnaryUnaryCall[_RequestType, _ResponseType]]
+        ],
+        client_call_details: grpc.aio.ClientCallDetails,
+        request: _RequestType,
+    ) -> grpc.aio.UnaryUnaryCall[_RequestType, _ResponseType] | _ResponseType:
+        client_call_details = self._append_headers(client_call_details)
+        return await continuation(client_call_details, request)
+
+
+class Client:
+    __slots__ = ("_attributes", "_remote_shards", "_token_hash", "_tracked_shards")
+
+    def __init__(self, token: str, /) -> None:
         self._attributes: _LiveAttributes | None = None
         self._remote_shards: dict[int, _RemoteShard] = {}
+        self._token_hash = _service.hash_token(token)
         self._tracked_shards: dict[int, _TrackedShard] = {}
 
     def _get_live(self) -> _LiveAttributes:
@@ -135,14 +208,20 @@ class Client:
         raise RuntimeError("Client not running")
 
     @property
-    def remote_shards(self) -> collections.Mapping[int, hikari.api.GatewayShard]:
+    def remote_shards(self) -> collections.abc.Mapping[int, hikari.api.GatewayShard]:
         return self._remote_shards
 
-    async def get_config(self) -> _protos.Config:
-        return await self._get_live().orchestrator.GetConfig(_protos.Undefined())
+    def _call_credentials(self) -> grpc.CallCredentials:
+        return grpc.access_token_call_credentials(self._token_hash)
 
-    async def get_all_states(self) -> collections.Sequence[_protos.Shard]:
-        return (await self._get_live().orchestrator.GetAllStates(_protos.Undefined())).shards
+    async def get_config(self) -> _protos.Config:
+        return await self._get_live().orchestrator.GetConfig(_protos.Undefined(), credentials=self._call_credentials())
+
+    async def get_all_states(self) -> collections.abc.Sequence[_protos.Shard]:
+        states = await self._get_live().orchestrator.GetAllStates(
+            _protos.Undefined(), credentials=self._call_credentials()
+        )
+        return states.shards
 
     # TODO: move both args to `__init__`.
     async def start(self, target: str, /, *, ca_cert: bytes | None = None) -> None:
@@ -150,10 +229,10 @@ class Client:
             raise RuntimeError("Already running")
 
         if ca_cert:
-            channel = grpc.aio.secure_channel(target, grpc.ssl_channel_credentials(ca_cert))
+            channel = grpc.aio.secure_channel(target, grpc.ssl_channel_credentials(ca_cert), interceptors=interceptors)
 
         else:
-            channel = grpc.aio.insecure_channel(target)
+            channel = grpc.aio.insecure_channel(target, interceptors=interceptors)
 
         self._attributes = _LiveAttributes(channel, _protos.OrchestratorStub(channel))
         # TODO: can this value be cached?
@@ -177,9 +256,9 @@ class Client:
     async def acquire_shard(self, shard: hikari.api.GatewayShard, /) -> None:
         raise NotImplementedError
 
-    async def recommended_shard(self, make_shard: collections.Callable[[_protos.Shard], _ShardT], /) -> _ShardT:
+    async def recommended_shard(self, make_shard: collections.abc.Callable[[_protos.Shard], _ShardT], /) -> _ShardT:
         live_attrs = self._get_live()
-        stream = live_attrs.orchestrator.AcquireNext()
+        stream = live_attrs.orchestrator.AcquireNext(credentials=self._call_credentials())
 
         instruction = await anext(aiter(stream))
 
@@ -280,7 +359,9 @@ class Client:
             undefined_activity=undefined_activity,
             status=None if status is hikari.UNDEFINED else status,
         )
-        await self._get_live().orchestrator.SendPayload(_protos.GatewayPayload(presence_update=update))
+        await self._get_live().orchestrator.SendPayload(
+            _protos.GatewayPayload(presence_update=update), credentials=self._call_credentials()
+        )
 
     async def update_voice_state(
         self,
@@ -296,7 +377,9 @@ class Client:
             self_mute=None if self_mute is hikari.UNDEFINED else self_mute,
             self_deaf=None if self_deaf is hikari.UNDEFINED else self_deaf,
         )
-        await self._get_live().orchestrator.SendPayload(_protos.GatewayPayload(voice_state=state))
+        await self._get_live().orchestrator.SendPayload(
+            _protos.GatewayPayload(voice_state=state), credentials=self._call_credentials()
+        )
 
     async def request_guild_members(
         self,
@@ -316,7 +399,9 @@ class Client:
             users=None if users is hikari.UNDEFINED else map(int, users),
             nonce=None if nonce is hikari.UNDEFINED else nonce,
         )
-        await self._get_live().orchestrator.SendPayload(_protos.GatewayPayload(request_guild_members=request))
+        await self._get_live().orchestrator.SendPayload(
+            _protos.GatewayPayload(request_guild_members=request), credentials=self._call_credentials()
+        )
 
 
 class _RemoteShard(hikari.api.GatewayShard):

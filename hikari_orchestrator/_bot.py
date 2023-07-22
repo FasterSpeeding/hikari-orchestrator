@@ -113,7 +113,7 @@ class Bot(hikari.GatewayBotAware):
         self._shards: dict[int, hikari.api.GatewayShard] = {}
         self._voice = hikari.impl.VoiceComponentImpl(self)
         self._token = token
-        self._manager = _client.Client()
+        self._manager = _client.Client(self._token)
 
     @property
     def cache(self) -> hikari.api.Cache:
