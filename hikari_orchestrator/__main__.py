@@ -31,16 +31,18 @@
 from __future__ import annotations
 
 import click
+import dotenv
 
 from . import _service  # pyright: ignore[reportPrivateUsage]
 
 
 @click.command()
 @click.argument("address", default="localhost:0", envvar="ORCHESTRATOR_ADDRESS")
-@click.option("--token", envvar="DISCORD_TOKEN")
+@click.option("--token", envvar="DISCORD_TOKEN", required=True)
 def main(address: str, token: str) -> None:
     _service.run_server(token, address)
 
 
 if __name__ == "__main__":
+    dotenv.load_dotenv()
     main()
