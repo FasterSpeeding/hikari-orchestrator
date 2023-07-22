@@ -41,6 +41,7 @@ import hikari
 from google.protobuf import timestamp_pb2
 
 from . import _protos
+from . import _service  # pyright: ignore[reportPrivateUsage]
 
 if typing.TYPE_CHECKING:
     import google.protobuf.message
