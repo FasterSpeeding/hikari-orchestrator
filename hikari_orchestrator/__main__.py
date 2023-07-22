@@ -36,7 +36,7 @@ from . import _service  # pyright: ignore[reportPrivateUsage]
 
 
 @click.command()
-@click.argument("address", envvar="ORCHESTRATOR_ADDRESS")
+@click.argument("address", default="localhost:0", envvar="ORCHESTRATOR_ADDRESS")
 @click.option("--token", envvar="DISCORD_TOKEN")
 def main(address: str, token: str) -> None:
     _service.run_server(token, address)
