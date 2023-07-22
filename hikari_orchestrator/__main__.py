@@ -31,6 +31,7 @@
 from __future__ import annotations
 
 import click
+import dotenv
 
 from . import _service  # pyright: ignore[reportPrivateUsage]
 
@@ -43,4 +44,5 @@ def main(address: str, token: str) -> None:
 
 
 if __name__ == "__main__":
+    dotenv.load_dotenv()
     main()
