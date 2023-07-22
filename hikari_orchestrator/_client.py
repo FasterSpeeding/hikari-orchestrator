@@ -46,11 +46,6 @@ if typing.TYPE_CHECKING:
     import google.protobuf.message
 
     _T = typing.TypeVar("_T")
-    _CoroT = collections.abc.Coroutine[typing.Any, typing.Any, _T]
-    _ResponseType = typing.TypeVar("_ResponseType")
-    _RequestType = typing.TypeVar("_RequestType")
-    _RequestIterableType = collections.abc.Iterable[typing.Any] | collections.abc.AsyncIterable[typing.Any]
-    _ResponseIterableType = collections.abc.AsyncIterable[typing.Any]
     _ShardT = typing.TypeVar("_ShardT", bound=hikari.api.GatewayShard)
     _StreamT = grpc.aio.StreamStreamCall[_protos.Shard, _protos.Instruction]
 
@@ -125,73 +120,6 @@ async def _handle_status(shard: _TrackedShard, /) -> None:
         await shard.update_status()
 
 
-class _AuthIntercceptor(
-    grpc.aio.UnaryUnaryClientInterceptor,
-    grpc.aio.StreamUnaryClientInterceptor,
-    grpc.aio.UnaryStreamClientInterceptor,
-    grpc.aio.StreamStreamClientInterceptor,
-):
-    def __init__(self, token: str, /) -> None:
-        self._token = "token " + _service.hash_token(token)
-
-    def _append_headers(self, client_call_details: grpc.aio.ClientCallDetails, /) -> grpc.aio.ClientCallDetails:
-        credentials = grpc.access_token_call_credentials(self._token)
-        if client_call_details:
-            credentials = grpc.composite_call_credentials(client_call_details.credentials, credentials)
-
-        return grpc.aio.ClientCallDetails(
-            client_call_details.method,
-            client_call_details.timeout,
-            client_call_details.metadata,
-            credentials,
-            client_call_details.wait_for_ready,
-        )
-
-    async def intercept_stream_stream(  # type: ignore
-        self,
-        continuation: collections.abc.Callable[
-            [grpc.aio.ClientCallDetails, _RequestType], _CoroT[grpc.aio.StreamStreamCall[_RequestType, _ResponseType]]
-        ],
-        client_call_details: grpc.aio.ClientCallDetails,
-        request_iterator: _RequestType,
-    ) -> _ResponseIterableType | grpc.aio.StreamStreamCall[_RequestType, _ResponseType]:
-        client_call_details = self._append_headers(client_call_details)
-        return await continuation(client_call_details, request_iterator)
-
-    async def intercept_stream_unary(  # type: ignore
-        self,
-        continuation: collections.abc.Callable[
-            [grpc.aio.ClientCallDetails, _RequestType], _CoroT[grpc.aio.StreamUnaryCall[_RequestType, _ResponseType]]
-        ],
-        client_call_details: grpc.aio.ClientCallDetails,
-        request_iterator: _RequestType,
-    ) -> grpc.aio.StreamUnaryCall[_RequestType, _ResponseType]:
-        client_call_details = self._append_headers(client_call_details)
-        return await continuation(client_call_details, request_iterator)
-
-    async def intercept_unary_stream(  # type: ignore
-        self,
-        continuation: collections.abc.Callable[
-            [grpc.aio.ClientCallDetails, _RequestType], _CoroT[grpc.aio.UnaryStreamCall[_RequestType, _ResponseType]]
-        ],
-        client_call_details: grpc.aio.ClientCallDetails,
-        request: _RequestType,
-    ) -> _ResponseIterableType | grpc.aio.UnaryStreamCall[_RequestType, _ResponseType]:
-        client_call_details = self._append_headers(client_call_details)
-        return await continuation(client_call_details, request)
-
-    async def intercept_unary_unary(  # type: ignore
-        self,
-        continuation: collections.abc.Callable[
-            [grpc.aio.ClientCallDetails, _RequestType], _CoroT[grpc.aio.UnaryUnaryCall[_RequestType, _ResponseType]]
-        ],
-        client_call_details: grpc.aio.ClientCallDetails,
-        request: _RequestType,
-    ) -> grpc.aio.UnaryUnaryCall[_RequestType, _ResponseType] | _ResponseType:
-        client_call_details = self._append_headers(client_call_details)
-        return await continuation(client_call_details, request)
-
-
 class Client:
     __slots__ = ("_attributes", "_remote_shards", "_token_hash", "_tracked_shards")
 
@@ -229,10 +157,10 @@ class Client:
             raise RuntimeError("Already running")
 
         if ca_cert:
-            channel = grpc.aio.secure_channel(target, grpc.ssl_channel_credentials(ca_cert), interceptors=interceptors)
+            channel = grpc.aio.secure_channel(target, grpc.ssl_channel_credentials(ca_cert))
 
         else:
-            channel = grpc.aio.insecure_channel(target, interceptors=interceptors)
+            channel = grpc.aio.insecure_channel(target)
 
         self._attributes = _LiveAttributes(channel, _protos.OrchestratorStub(channel))
         # TODO: can this value be cached?
