@@ -31,16 +31,17 @@
 from __future__ import annotations
 
 import asyncio
+import collections.abc
 import dataclasses
 import datetime
 import typing
-from collections import abc as collections
 
 import grpc.aio  # type: ignore
 import hikari
 from google.protobuf import timestamp_pb2
 
 from . import _protos
+from . import _service  # pyright: ignore[reportPrivateUsage]
 
 if typing.TYPE_CHECKING:
     import google.protobuf.message
@@ -121,11 +122,12 @@ async def _handle_status(shard: _TrackedShard, /) -> None:
 
 
 class Client:
-    __slots__ = ("_attributes", "_remote_shards", "_tracked_shards")
+    __slots__ = ("_attributes", "_remote_shards", "_token_hash", "_tracked_shards")
 
-    def __init__(self) -> None:
+    def __init__(self, token: str, /) -> None:
         self._attributes: _LiveAttributes | None = None
         self._remote_shards: dict[int, _RemoteShard] = {}
+        self._token_hash = _service.hash_token(token)
         self._tracked_shards: dict[int, _TrackedShard] = {}
 
     def _get_live(self) -> _LiveAttributes:
@@ -135,22 +137,28 @@ class Client:
         raise RuntimeError("Client not running")
 
     @property
-    def remote_shards(self) -> collections.Mapping[int, hikari.api.GatewayShard]:
+    def remote_shards(self) -> collections.abc.Mapping[int, hikari.api.GatewayShard]:
         return self._remote_shards
 
-    async def get_config(self) -> _protos.Config:
-        return await self._get_live().orchestrator.GetConfig(_protos.Undefined())
+    def _call_credentials(self) -> grpc.CallCredentials:
+        return grpc.access_token_call_credentials(self._token_hash)
 
-    async def get_all_states(self) -> collections.Sequence[_protos.Shard]:
-        return (await self._get_live().orchestrator.GetAllStates(_protos.Undefined())).shards
+    async def get_config(self) -> _protos.Config:
+        return await self._get_live().orchestrator.GetConfig(_protos.Undefined(), credentials=self._call_credentials())
+
+    async def get_all_states(self) -> collections.abc.Sequence[_protos.Shard]:
+        states = await self._get_live().orchestrator.GetAllStates(
+            _protos.Undefined(), credentials=self._call_credentials()
+        )
+        return states.shards
 
     # TODO: move both args to `__init__`.
-    async def start(self, target: str, /, *, credentials: grpc.ChannelCredentials | None = None) -> None:
+    async def start(self, target: str, /, *, ca_cert: bytes | None = None) -> None:
         if self._attributes:
             raise RuntimeError("Already running")
 
-        if credentials:
-            channel = grpc.aio.secure_channel(target, credentials)
+        if ca_cert:
+            channel = grpc.aio.secure_channel(target, grpc.ssl_channel_credentials(ca_cert))
 
         else:
             channel = grpc.aio.insecure_channel(target)
@@ -177,9 +185,9 @@ class Client:
     async def acquire_shard(self, shard: hikari.api.GatewayShard, /) -> None:
         raise NotImplementedError
 
-    async def recommended_shard(self, make_shard: collections.Callable[[_protos.Shard], _ShardT], /) -> _ShardT:
+    async def recommended_shard(self, make_shard: collections.abc.Callable[[_protos.Shard], _ShardT], /) -> _ShardT:
         live_attrs = self._get_live()
-        stream = live_attrs.orchestrator.AcquireNext()
+        stream = live_attrs.orchestrator.AcquireNext(credentials=self._call_credentials())
 
         instruction = await anext(aiter(stream))
 
@@ -280,7 +288,9 @@ class Client:
             undefined_activity=undefined_activity,
             status=None if status is hikari.UNDEFINED else status,
         )
-        await self._get_live().orchestrator.SendPayload(_protos.GatewayPayload(presence_update=update))
+        await self._get_live().orchestrator.SendPayload(
+            _protos.GatewayPayload(presence_update=update), credentials=self._call_credentials()
+        )
 
     async def update_voice_state(
         self,
@@ -296,7 +306,9 @@ class Client:
             self_mute=None if self_mute is hikari.UNDEFINED else self_mute,
             self_deaf=None if self_deaf is hikari.UNDEFINED else self_deaf,
         )
-        await self._get_live().orchestrator.SendPayload(_protos.GatewayPayload(voice_state=state))
+        await self._get_live().orchestrator.SendPayload(
+            _protos.GatewayPayload(voice_state=state), credentials=self._call_credentials()
+        )
 
     async def request_guild_members(
         self,
@@ -316,7 +328,9 @@ class Client:
             users=None if users is hikari.UNDEFINED else map(int, users),
             nonce=None if nonce is hikari.UNDEFINED else nonce,
         )
-        await self._get_live().orchestrator.SendPayload(_protos.GatewayPayload(request_guild_members=request))
+        await self._get_live().orchestrator.SendPayload(
+            _protos.GatewayPayload(request_guild_members=request), credentials=self._call_credentials()
+        )
 
 
 class _RemoteShard(hikari.api.GatewayShard):

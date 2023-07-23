@@ -30,37 +30,42 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-import io
+import datetime
 
-import click
-import dotenv
-
-from . import _service  # pyright: ignore[reportPrivateUsage]
-
-
-@click.command()
-@click.argument("address", default="localhost:0", envvar="ORCHESTRATOR_ADDRESS")
-@click.option("--token", envvar="DISCORD_TOKEN", required=True)
-@click.option("--ca-cert", default=None, envvar="ORCHESTRATOR_CA_CERT", type=click.File("rb"))
-@click.option("--private-key", default=None, envvar="ORCHESTRATOR_PRIVATE_KEY", type=click.File("rb"))
-def main(address: str, token: str, ca_cert: io.BytesIO | None, private_key: io.BytesIO | None) -> None:
-    if ca_cert:
-        ca_cert_data = ca_cert.read()
-        ca_cert.close()
-
-    else:
-        ca_cert_data = None
-
-    if private_key:
-        private_key_data = private_key.read()
-        private_key.close()
-
-    else:
-        private_key_data = None
-
-    _service.run_server(token, address, ca_cert=ca_cert_data, private_key=private_key_data)
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509 import oid
 
 
-if __name__ == "__main__":
-    dotenv.load_dotenv()
-    main()
+def gen_ca() -> tuple[bytes, bytes]:
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    name = x509.Name(
+        [
+            x509.NameAttribute(oid.NameOID.COUNTRY_NAME, "JP"),
+            x509.NameAttribute(oid.NameOID.STATE_OR_PROVINCE_NAME, "Tokyo"),
+            x509.NameAttribute(oid.NameOID.LOCALITY_NAME, "Tokyo"),
+            x509.NameAttribute(oid.NameOID.ORGANIZATION_NAME, "Hikari Orchestrator"),
+            x509.NameAttribute(oid.NameOID.COMMON_NAME, "hikari_orchestrator"),
+        ]
+    )
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(private_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now)
+        .not_valid_after(now + datetime.timedelta(days=365) * 20)
+        .add_extension(x509.SubjectAlternativeName([x509.DNSName("localhost")]), critical=False)
+        .sign(private_key, hashes.SHA256())
+    ).public_bytes(serialization.Encoding.PEM)
+
+    private_key = private_key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption()
+    )
+
+    return cert, private_key
