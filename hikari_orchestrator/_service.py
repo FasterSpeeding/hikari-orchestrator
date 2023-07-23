@@ -306,8 +306,6 @@ async def _spawn_server(
     _protos.add_OrchestratorServicer_to_server(orchestrator, server)
 
     if private_key and ca_cert:
-        # token_header = grpc.access_token_call_credentials(token)
-        # grpc.composite_call_credentials(credentials, token_header)
         credentials = grpc.ssl_server_credentials([(private_key, ca_cert)])
         port = server.add_secure_port(address, credentials)
 
