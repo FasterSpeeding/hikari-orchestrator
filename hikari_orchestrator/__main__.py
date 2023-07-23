@@ -34,16 +34,19 @@ import io
 
 import click
 import dotenv
+import logging
 
 from . import _service  # pyright: ignore[reportPrivateUsage]
 
 
 @click.command()
 @click.argument("address", default="localhost:0", envvar="ORCHESTRATOR_ADDRESS")
+@click.option("--log-level", default="INFO", envvar="LOG_LEVEL")
 @click.option("--token", envvar="DISCORD_TOKEN", required=True)
 @click.option("--ca-cert", default=None, envvar="ORCHESTRATOR_CA_CERT", type=click.File("rb"))
 @click.option("--private-key", default=None, envvar="ORCHESTRATOR_PRIVATE_KEY", type=click.File("rb"))
-def main(address: str, token: str, ca_cert: io.BytesIO | None, private_key: io.BytesIO | None) -> None:
+def main(address: str, token: str, ca_cert: io.BytesIO | None, log_level: str, private_key: io.BytesIO | None) -> None:
+    logging.basicConfig(level=log_level)
     if ca_cert:
         ca_cert_data = ca_cert.read()
         ca_cert.close()
