@@ -31,10 +31,10 @@
 from __future__ import annotations
 
 import io
+import logging
 
 import click
 import dotenv
-import logging
 
 from . import _service  # pyright: ignore[reportPrivateUsage]
 
