@@ -9,10 +9,8 @@
 # You should have received a copy of the CC0 Public Domain Dedication along with this software.
 # If not, see <https://creativecommons.org/publicdomain/zero/1.0/>.
 
-
 def subprocess_bot_example():
     ...
-
 
 def distributed_bot_example():
     ...
