@@ -1,0 +1,68 @@
+# mkdocs.yml
+site_name: "Hikari Orchestrator docs"
+theme:
+  name: material
+  icon:
+    admonition:
+      note: octicons/tag-16
+      abstract: octicons/checklist-16
+      info: octicons/info-16
+      tip: octicons/squirrel-16
+      success: octicons/check-16
+      question: octicons/question-16
+      warning: octicons/alert-16
+      failure: octicons/x-circle-16
+      danger: octicons/zap-16
+      bug: octicons/bug-16
+      example: octicons/beaker-16
+      quote: octicons/quote-16
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: cyan
+      toggle:
+        icon: material/lightbulb
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: cyan
+      toggle:
+        icon: material/lightbulb
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.snippets:
+      dedent_subsections: true
+  - pymdownx.superfences
+  - markdown_include.include
+  - toc:
+      permalink: "#"
+
+plugins:
+  - autorefs
+  - search
+  - minify:
+      minify_html: true
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          import:
+            - https://docs.python.org/3.11/objects.inv
+            - https://docs.hikari-py.dev/en/latest/objects.inv
+          options:
+            docstring_section_style: list
+            docstring_style: numpy
+            inherited_members: true
+            merge_init_into_class: false
+            separate_signature: true
+            show_signature_annotations: false
+            show_source: false
+            show_submodules: false
+
+watch:
+  - CHANGELOG.md
+  - docs_src
+  - hikari_orchestrator
