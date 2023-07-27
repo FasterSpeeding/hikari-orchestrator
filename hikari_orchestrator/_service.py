@@ -255,7 +255,7 @@ class Orchestrator(_protos.OrchestratorServicer):
 
 
 def _spawn_child(
-    manager_address: str,
+    orchestrator_address: str,
     token: str,
     global_shard_count: int,
     local_shard_count: int,
@@ -264,7 +264,7 @@ def _spawn_child(
     intents: hikari.Intents | int,
 ) -> None:
     bot = _bot.Bot(
-        manager_address,
+        orchestrator_address,
         token,
         ca_cert=ca_cert,
         intents=intents,
@@ -296,6 +296,7 @@ async def _spawn_server(
     *,
     gateway_info: hikari.GatewayBotInfo | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
+    # TODO: can this generate a private key from the CA cert easily?
     private_key: bytes | None = None,
     ca_cert: bytes | None = None,
     shard_count: int | None = None,
@@ -332,19 +333,49 @@ def run_server(
     address: str,
     /,
     *,
-    gateway_info: hikari.GatewayBotInfo | None = None,
+    # gateway_info: hikari.GatewayBotInfo | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
-    private_key: bytes | None = None,
     ca_cert: bytes | None = None,
+    private_key: bytes | None = None,
     shard_count: int | None = None,
 ) -> None:
+    """Run an Orchestrator server instance.
+
+    Parameters
+    ----------
+    token
+        Discord token of the bot this orchestrator serve is managing.
+    address
+        The address to host the server at.
+
+        This defaults to TCP if no scheme is included and more information on
+        the supported schemes can be found
+        [here](https://github.com/grpc/grpc/blob/master/doc/naming.md).
+    intents
+        The Discord gateway intents this bot should run with.
+    ca_cert
+        Bytes of the unencrypted PEM certificate authority this should use for
+        TLS SSL encryption.
+
+        `private_key` must also be passed when this is provided.
+    private_key
+        Bytes of the unencrypted private PEM key this server should use for
+        TLS SSL encryption.
+
+        `ca_cert` must also be passed when this is proivded.
+    shard_count
+        The amount of shards this bot should be split into.
+
+        If left as [None][] then this defaults to the shard count
+        recommended by Discord.
+    """
     loop = asyncio.new_event_loop()
     _, server = loop.run_until_complete(
         _spawn_server(
             token,
             address,
             ca_cert=ca_cert,
-            gateway_info=gateway_info,
+            # gateway_info=gateway_info,
             intents=intents,
             private_key=private_key,
             shard_count=shard_count,
@@ -362,6 +393,10 @@ async def spawn_subprocesses(
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
     subprocess_count: int = _DEFAULT_SUBPROCESS_COUNT,
 ) -> None:
+    """Asynchronously variant of [run_subprocesses][hikari_orchestrator.run_subprocesses].
+
+    The returned coroutine will finish once the server has closed.
+    """
     gateway_info = await _fetch_bot_info(token)
     global_shard_count = shard_count or gateway_info.shard_count
     local_shard_count = global_shard_count / subprocess_count
@@ -422,6 +457,29 @@ def run_subprocesses(
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
     subprocess_count: int = _DEFAULT_SUBPROCESS_COUNT,
 ) -> None:
+    """Run a bot across several procsesses.
+
+    Parameters
+    ----------
+    token
+        Discord token of the bot
+    callback
+        Callback to call each child bot instance with on startup.
+
+        This is used to setup the bot.
+    shard_count
+        The amount of shards this bot should be split into.
+
+        If left as [None][] then this defaults to the shard count
+        recommended by Discord.
+    intents
+        The Discord gateway intents this bot should run with.
+    subprocess_count
+        The amount of subprocesses to spawn.
+
+        If left as undefined then the current system's thread count is used.
+        This will never spawn more subprocesses than `shard_count`.
+    """
     asyncio.run(
         spawn_subprocesses(
             token, callback=callback, shard_count=shard_count, intents=intents, subprocess_count=subprocess_count

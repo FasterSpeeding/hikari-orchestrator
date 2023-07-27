@@ -45,6 +45,8 @@ from . import _protos
 
 
 class Bot(hikari.GatewayBotAware):
+    """Bot implementation which is managed by an Orchestrator server."""
+
     __slots__ = (
         "_cache_settings",
         "_cache",
@@ -59,7 +61,7 @@ class Bot(hikari.GatewayBotAware):
         "_local_shard_count",
         "_local_shard_ids",
         "_manager",
-        "_manager_address",
+        "_orchestrator_address",
         "_proxy_settings",
         "_rest",
         "_shards",
@@ -69,7 +71,7 @@ class Bot(hikari.GatewayBotAware):
 
     def __init__(
         self,
-        manager_address: str,
+        orchestrator_address: str,
         token: str,
         /,
         *,
@@ -82,6 +84,29 @@ class Bot(hikari.GatewayBotAware):
         global_shard_count: int | None = None,
         local_shard_count: int = 1,
     ) -> None:
+        """Initialise an orchestrator Bot.
+
+        Parameters
+        ----------
+        orchestrator_address
+            Address the orchestrator server is hosted at.
+        token
+            Discord bot token to use.
+        cache_settings
+            The cache settings to use.
+        ca_cert
+            Certificate authority certificate used by the orchestrator server for
+            TLS SSL.
+        http_settings
+            Configuration to use for the REST client.
+        proxy_settings
+            Custom proxy settings to use with network-layer logic
+            in your application to get through an HTTP-proxy.
+        rest_url
+            Base URl to use for requests made by the REST client.
+        local_shard_count
+            Amount of shards this bot should spawn locally.
+        """
         self._cache_settings = cache_settings or hikari.impl.CacheSettings()
         self._cache = hikari.impl.CacheImpl(self, self._cache_settings)
         self._ca_cert = ca_cert
@@ -98,7 +123,7 @@ class Bot(hikari.GatewayBotAware):
         self._http_settings = http_settings or hikari.impl.HTTPSettings()
         self._local_shard_count = local_shard_count
         self._local_shard_ids: list[int] = []
-        self._manager_address = manager_address
+        self._orchestrator_address = orchestrator_address
         self._proxy_settings = proxy_settings or hikari.impl.ProxySettings()
         self._rest = hikari.impl.RESTClientImpl(
             cache=self._cache,
@@ -113,7 +138,7 @@ class Bot(hikari.GatewayBotAware):
         self._shards: dict[int, hikari.api.GatewayShard] = {}
         self._voice = hikari.impl.VoiceComponentImpl(self)
         self._token = token
-        self._manager = _client.Client(self._token, self._manager_address, ca_cert=self._ca_cert)
+        self._manager = _client.Client(self._token, self._orchestrator_address, ca_cert=self._ca_cert)
 
     @property
     def cache(self) -> hikari.api.Cache:
