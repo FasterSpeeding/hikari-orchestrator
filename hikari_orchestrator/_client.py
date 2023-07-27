@@ -122,10 +122,12 @@ async def _handle_status(shard: _TrackedShard, /) -> None:
 
 
 class Client:
-    __slots__ = ("_attributes", "_remote_shards", "_token_hash", "_tracked_shards")
+    __slots__ = ("_attributes", "_ca_cert", "_orchestrator_address", "_remote_shards", "_token_hash", "_tracked_shards")
 
-    def __init__(self, token: str, /) -> None:
+    def __init__(self, token: str, orchestrator_address: str, /, *, ca_cert: bytes | None = None) -> None:
         self._attributes: _LiveAttributes | None = None
+        self._ca_cert = ca_cert
+        self._orchestrator_address = orchestrator_address
         self._remote_shards: dict[int, _RemoteShard] = {}
         self._token_hash = _service.hash_token(token)
         self._tracked_shards: dict[int, _TrackedShard] = {}
@@ -152,16 +154,15 @@ class Client:
         )
         return states.shards
 
-    # TODO: move both args to `__init__`.
-    async def start(self, target: str, /, *, ca_cert: bytes | None = None) -> None:
+    async def start(self) -> None:
         if self._attributes:
             raise RuntimeError("Already running")
 
-        if ca_cert:
-            channel = grpc.aio.secure_channel(target, grpc.ssl_channel_credentials(ca_cert))
+        if self._ca_cert:
+            channel = grpc.aio.secure_channel(self._orchestrator_address, grpc.ssl_channel_credentials(self._ca_cert))
 
         else:
-            channel = grpc.aio.insecure_channel(target)
+            channel = grpc.aio.insecure_channel(self._orchestrator_address)
 
         self._attributes = _LiveAttributes(channel, _protos.OrchestratorStub(channel))
         # TODO: can this value be cached?
