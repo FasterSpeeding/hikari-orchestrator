@@ -63,7 +63,7 @@ def _cast_token(value: str, /) -> hikari.Intents:
 @click.command()
 @click.argument("address", default="localhost:0", envvar="ORCHESTRATOR_ADDRESS")
 @click.option("--token", envvar="DISCORD_TOKEN", required=True)
-@click.option("--intents", default=hikari.Intents.ALL_UNPRIVILEGED, type=_cast_token)
+@click.option("--intents", default=hikari.Intents.ALL_UNPRIVILEGED, envvar="ORCHESTRATOR_INTENTS", type=_cast_token)
 @click.option("--log-level", default="INFO", envvar="LOG_LEVEL")
 @click.option("--ca-cert", default=None, envvar="ORCHESTRATOR_CA_CERT", type=click.File("rb"))
 @click.option("--private-key", default=None, envvar="ORCHESTRATOR_PRIVATE_KEY", type=click.File("rb"))
