@@ -143,10 +143,10 @@ class Client:
     def _call_credentials(self) -> grpc.CallCredentials:
         return grpc.access_token_call_credentials(self._token_hash)
 
-    async def get_config(self) -> _protos.Config:
+    async def fetch_config(self) -> _protos.Config:
         return await self._get_live().orchestrator.GetConfig(_protos.Undefined(), credentials=self._call_credentials())
 
-    async def get_all_states(self) -> collections.abc.Sequence[_protos.Shard]:
+    async def fetch_all_states(self) -> collections.abc.Sequence[_protos.Shard]:
         states = await self._get_live().orchestrator.GetAllStates(
             _protos.Undefined(), credentials=self._call_credentials()
         )
@@ -165,7 +165,7 @@ class Client:
 
         self._attributes = _LiveAttributes(channel, _protos.OrchestratorStub(channel))
         # TODO: can this value be cached?
-        config = await self.get_config()
+        config = await self.fetch_config()
         for shard_id in range(config.shard_count):
             self._remote_shards[shard_id] = _RemoteShard(
                 self, shard_id, hikari.Intents(config.intents), config.shard_count

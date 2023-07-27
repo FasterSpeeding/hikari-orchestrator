@@ -281,7 +281,7 @@ class Bot(hikari.GatewayBotAware):
         self._shards.update(self._manager.remote_shards)
 
         if self._global_shard_count is None or self._intents is None:
-            config = await self._manager.get_config()
+            config = await self._manager.fetch_config()
             if self._global_shard_count is None:
                 self._global_shard_count = config.shard_count
 
