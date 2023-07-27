@@ -52,6 +52,7 @@ from . import _protos
 from . import _ssl
 
 _LOGGER = logging.getLogger("hikari.orchestrator")
+_DEFAULT_SUBPROCESS_COUNT = os.cpu_count() or 1
 
 
 def _now() -> datetime.datetime:
@@ -359,7 +360,7 @@ async def spawn_subprocesses(
     callback: collections.Callable[[hikari.GatewayBotAware], None] | None = None,
     shard_count: int | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
-    subprocess_count: int = os.cpu_count() or 1,
+    subprocess_count: int = _DEFAULT_SUBPROCESS_COUNT,
 ) -> None:
     gateway_info = await _fetch_bot_info(token)
     global_shard_count = shard_count or gateway_info.shard_count
@@ -419,7 +420,7 @@ def run_subprocesses(
     callback: collections.Callable[[hikari.GatewayBotAware], None] | None = None,
     shard_count: int | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
-    subprocess_count: int = os.cpu_count() or 1,
+    subprocess_count: int = _DEFAULT_SUBPROCESS_COUNT,
 ) -> None:
     asyncio.run(
         spawn_subprocesses(
