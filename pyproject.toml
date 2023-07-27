@@ -143,14 +143,14 @@ default_sessions = [
 extra_test_installs = ["."]
 path_ignore = "hikari_orchestrator\\/_protos\\/"
 project_name = "hikari_orchestrator"
-top_level_targets = ["hikari_orchestrator", "./noxfile.py"]
+top_level_targets = ["docs_src", "hikari_orchestrator", "./noxfile.py"]
 
 [tool.piped.github_actions."*"]
 DEFAULT_PY_VER = "3.10"
 
 [tool.piped.github_actions.freeze_for_pr]
 [tool.piped.github_actions.lint]
-# [tool.piped.github_actions.pr_docs]
+[tool.piped.github_actions.pr_docs]
 [tool.piped.github_actions.publish]
 # [tool.piped.github_actions.py_test]
 # codeclimate_token = ""
@@ -167,7 +167,7 @@ DEFAULT_PY_VER = "3.10"
 
 [tool.pyright]
 exclude = ["hikari_orchestrator/_protos"]
-include = ["hikari_orchestrator", "noxfile.py"]
+include = ["docs_src", "hikari_orchestrator", "noxfile.py"]
 
 pythonVersion = "3.10"
 typeCheckingMode = "strict"
