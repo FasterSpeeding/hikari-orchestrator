@@ -95,6 +95,9 @@ aiohttp==3.8.5 ; python_full_version >= "3.10.0" and python_version < "3.12" \
 aiosignal==1.3.1 ; python_full_version >= "3.10.0" and python_version < "3.12" \
     --hash=sha256:54cd96e15e1649b75d6c87526a6ff0b6c1b0dd3459f43d9ca11d48c339b68cfc \
     --hash=sha256:f8376fb07dd1e86a584e4fcdec80b36b7f81aac666ebc724e2c090300dd83b17
+alluka==0.1.3 ; python_full_version >= "3.10.0" and python_version < "3.12" \
+    --hash=sha256:5bc3f13b74b4706a99f1eaee0dd64f709aac1a67a88999b86f2eca6a2adf1c8a \
+    --hash=sha256:c2d67315764f72d7789256676fa81fda093c10fbe4137e66ff4f9dab631f408e
 annotated-types==0.5.0 ; python_full_version >= "3.10.0" and python_version < "3.12" \
     --hash=sha256:47cdc3490d9ac1506ce92c7aaa76c579dc3509ff11e098fc867e5130ab7be802 \
     --hash=sha256:58da39888f92c276ad970249761ebea80ba544b77acddaa1a4d6cf78287d45fd
@@ -441,6 +444,9 @@ grpcio==1.56.2 ; python_full_version >= "3.10.0" and python_version < "3.12" \
     --hash=sha256:ded637176addc1d3eef35331c39acc598bac550d213f0a1bedabfceaa2244c87 \
     --hash=sha256:f20fd21f7538f8107451156dd1fe203300b79a9ddceba1ee0ac8132521a008ed \
     --hash=sha256:fda2783c12f553cdca11c08e5af6eecbd717280dc8fbe28a110897af1c15a88c
+hikari-tanjun==2.16.0 ; python_full_version >= "3.10.0" and python_version < "3.12" \
+    --hash=sha256:66ca826c6ad3740765a640aa76339b6eed82a044d71ce0c53c05f93ae1b5a40c \
+    --hash=sha256:f7f8e6c2ef48c6743ae9bbaaa4bfe34c3b556fbb5b1267c4b842e307b966380e
 hikari==2.0.0.dev120 ; python_full_version >= "3.10.0" and python_version < "3.12" \
     --hash=sha256:08201e37d1c1733868d1928a086a4bec79504d0729105bf2fb0a0c3bcd731aa1 \
     --hash=sha256:13122a12f5c83f10049ec66e13554e1d91350cb4faee7b7ad0efcac4a731202b
