@@ -52,7 +52,7 @@ def _cast_token(value: str, /) -> hikari.Intents:
     intents = hikari.Intents.NONE
     for name in value.upper().split("|"):
         try:
-            intents |= hikari.Intents[name.upper()]
+            intents |= hikari.Intents[name.strip()]
 
         except KeyError:
             raise ValueError(f"{name!r} is not a valid intent")
