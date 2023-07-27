@@ -35,17 +35,46 @@ import logging
 
 import click
 import dotenv
+import hikari
 
 from . import _service  # pyright: ignore[reportPrivateUsage]
 
 
+def _cast_token(value: str, /) -> hikari.Intents:
+    try:
+        int_value = int(value)
+    except ValueError:
+        pass
+
+    else:
+        return hikari.Intents(int_value)
+
+    intents = hikari.Intents.NONE
+    for name in value.upper().split("|"):
+        try:
+            intents |= hikari.Intents[name.strip()]
+
+        except KeyError:
+            raise ValueError(f"{name!r} is not a valid intent")
+
+    return intents
+
+
 @click.command()
 @click.argument("address", default="localhost:0", envvar="ORCHESTRATOR_ADDRESS")
-@click.option("--log-level", default="INFO", envvar="LOG_LEVEL")
 @click.option("--token", envvar="DISCORD_TOKEN", required=True)
+@click.option("--intents", default=hikari.Intents.ALL_UNPRIVILEGED, envvar="ORCHESTRATOR_INTENTS", type=_cast_token)
+@click.option("--log-level", default="INFO", envvar="LOG_LEVEL")
 @click.option("--ca-cert", default=None, envvar="ORCHESTRATOR_CA_CERT", type=click.File("rb"))
 @click.option("--private-key", default=None, envvar="ORCHESTRATOR_PRIVATE_KEY", type=click.File("rb"))
-def main(address: str, token: str, ca_cert: io.BytesIO | None, log_level: str, private_key: io.BytesIO | None) -> None:
+def main(
+    address: str,
+    token: str,
+    ca_cert: io.BytesIO | None,
+    intents: hikari.Intents,
+    log_level: str,
+    private_key: io.BytesIO | None,
+) -> None:
     logging.basicConfig(level=log_level.capitalize())
     if ca_cert:
         ca_cert_data = ca_cert.read()
@@ -61,7 +90,7 @@ def main(address: str, token: str, ca_cert: io.BytesIO | None, log_level: str, p
     else:
         private_key_data = None
 
-    _service.run_server(token, address, ca_cert=ca_cert_data, private_key=private_key_data)
+    _service.run_server(token, address, ca_cert=ca_cert_data, private_key=private_key_data, intents=intents)
 
 
 if __name__ == "__main__":
