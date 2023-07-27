@@ -113,7 +113,7 @@ class Bot(hikari.GatewayBotAware):
         self._shards: dict[int, hikari.api.GatewayShard] = {}
         self._voice = hikari.impl.VoiceComponentImpl(self)
         self._token = token
-        self._manager = _client.Client(self._token)
+        self._manager = _client.Client(self._token, self._manager_address, ca_cert=self._ca_cert)
 
     @property
     def cache(self) -> hikari.api.Cache:
@@ -277,7 +277,7 @@ class Bot(hikari.GatewayBotAware):
             raise hikari.ComponentStateConflictError("Already running")
 
         self._close_event = asyncio.Event()
-        await self._manager.start(self._manager_address, ca_cert=self._ca_cert)
+        await self._manager.start()
         self._shards.update(self._manager.remote_shards)
 
         if self._global_shard_count is None or self._intents is None:
