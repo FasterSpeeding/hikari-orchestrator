@@ -46,7 +46,7 @@ from . import _service  # pyright: ignore[reportPrivateUsage]
 @click.option("--ca-cert", default=None, envvar="ORCHESTRATOR_CA_CERT", type=click.File("rb"))
 @click.option("--private-key", default=None, envvar="ORCHESTRATOR_PRIVATE_KEY", type=click.File("rb"))
 def main(address: str, token: str, ca_cert: io.BytesIO | None, log_level: str, private_key: io.BytesIO | None) -> None:
-    logging.basicConfig(level=log_level)
+    logging.basicConfig(level=log_level.capitalize())
     if ca_cert:
         ca_cert_data = ca_cert.read()
         ca_cert.close()
