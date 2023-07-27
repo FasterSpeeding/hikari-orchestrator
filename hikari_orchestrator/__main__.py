@@ -67,7 +67,14 @@ def _cast_token(value: str, /) -> hikari.Intents:
 @click.option("--log-level", default="INFO", envvar="LOG_LEVEL")
 @click.option("--ca-cert", default=None, envvar="ORCHESTRATOR_CA_CERT", type=click.File("rb"))
 @click.option("--private-key", default=None, envvar="ORCHESTRATOR_PRIVATE_KEY", type=click.File("rb"))
-def main(address: str, token: str, intents: hikari.Intents, ca_cert: io.BytesIO | None, log_level: str, private_key: io.BytesIO | None) -> None:
+def main(
+    address: str,
+    token: str,
+    intents: hikari.Intents,
+    ca_cert: io.BytesIO | None,
+    log_level: str,
+    private_key: io.BytesIO | None,
+) -> None:
     logging.basicConfig(level=log_level.capitalize())
     if ca_cert:
         ca_cert_data = ca_cert.read()
