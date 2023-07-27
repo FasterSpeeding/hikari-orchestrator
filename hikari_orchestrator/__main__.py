@@ -70,8 +70,8 @@ def _cast_token(value: str, /) -> hikari.Intents:
 def main(
     address: str,
     token: str,
-    intents: hikari.Intents,
     ca_cert: io.BytesIO | None,
+    intents: hikari.Intents,
     log_level: str,
     private_key: io.BytesIO | None,
 ) -> None:
