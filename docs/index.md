@@ -29,14 +29,14 @@ to specify the intended gateway intents.
 On a larger scale Hikari Orchestrator can also be used to manage shards across
 different machines.
 
+For this you'll want to first start up an Orchestrator server using the CLI
+entry point (or using [run_server][hikari_orchestrator.run_server]):
+
 ```shell
 hikari_orchestrator tcp://localhost:6969 --token "Bot.Token"
 ```
 
-For this you'll first want to start up an Orchestrator server using the CLI
-entry point.
-
-Required arguments:
+The CLI application has two required arguments:
 
 - The server's host address is the only positional argument. TCP will be used
   if no scheme is included and more information on the supported schemes can be
@@ -45,7 +45,7 @@ Required arguments:
   It's recommended that you provide this via its env variable rather than as a
   CLI argument .
 
-Optional arguments:
+And several optional arguments:
 
 - `--intents`: The gateway intents the bot should declare. This defaults to
   `ALL_UNPRIVILEGED` and supports passing either the raw integer flag or a
@@ -58,19 +58,19 @@ Optional arguments:
   encrypt TCP connections.
 
 These options and arguments can also be provided as environment variables
-(including through a `.env` file); to see the relevant env variable names use
-`hikari_orchestrator --help`.
+(including as part of a `.env` file); to see the relevant env variable names
+use `hikari_orchestrator --help`.
 
 ```py
 --8<-- "./docs_src/index.py:27:31"
 ```
 
-Then you need to startup a child bot instance. For this you'll use
+Then you need to startup some child bot instances. For this you'll use
 Orchestrator's [Bot][hikari_orchestrator.Bot] implementation of
-[GatewayBotAware][hikari.traits.GatewayBotAware] which will need to be given
-the Orchestrator's server and the bot's token but otherwise can be used just
-like the standard gateway bot. `local_shard_count` indicates how many shards
-the bot instance should try to startup.
+[GatewayBotAware][hikari.traits.GatewayBotAware] which needs to be given the
+Orchestrator server's address and the bot's token but otherwise can be used
+just like the standard gateway bot. `local_shard_count` indicates how many
+shards the bot instance should try to startup.
 
 !!! note
     To use SSL encryption for TCP connections you'll need to pass the
