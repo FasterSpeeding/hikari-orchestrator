@@ -100,7 +100,7 @@ def main(
     log_level: str,
     private_key: io.BytesIO | None,
 ) -> None:
-    logging.basicConfig(level=log_level.capitalize())
+    logging.basicConfig(level=log_level.upper())
     if ca_cert:
         ca_cert_data = ca_cert.read()
         ca_cert.close()

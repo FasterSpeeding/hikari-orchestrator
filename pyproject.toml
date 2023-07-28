@@ -28,7 +28,7 @@ dependencies = ["click>=8, <9", "cryptography>=41, <42", "grpcio>=1, <2", "grpci
 dynamic = ["description"]
 
 [project.scripts]
-hikari_orchestrator = "hikari_orchestrator.__main__:main"
+hikari-orchestrator = "hikari_orchestrator.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/FasterSpeeding/hikari-orchestrator"
