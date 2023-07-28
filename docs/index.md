@@ -22,7 +22,7 @@ subprocesses' separate bot instance.
 to specify the intended gateway intents.
 
 !!! warning
-    Since the callback is passed to child processes it needs to be 
+    Since the callback is passed to child processes it needs to be
     [picklable](https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled).
 
 #### Distributed Bot
