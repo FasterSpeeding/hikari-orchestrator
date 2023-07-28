@@ -60,13 +60,38 @@ def _cast_token(value: str, /) -> hikari.Intents:
     return intents
 
 
-@click.command()
+_HELP = """
+Run a Hikari Orchestrator server instance.
+The `ADDRESS` for this server will default to TCP if no scheme is included and
+the valid schemes can be found at
+https://github.com/grpc/grpc/blob/master/doc/naming.md
+"""
+
+
+@click.command(help=_HELP)
 @click.argument("address", default="localhost:0", envvar="ORCHESTRATOR_ADDRESS")
-@click.option("--token", envvar="DISCORD_TOKEN", required=True)
-@click.option("--intents", default=hikari.Intents.ALL_UNPRIVILEGED, envvar="ORCHESTRATOR_INTENTS", type=_cast_token)
-@click.option("--log-level", default="INFO", envvar="LOG_LEVEL")
-@click.option("--ca-cert", default=None, envvar="ORCHESTRATOR_CA_CERT", type=click.File("rb"))
-@click.option("--private-key", default=None, envvar="ORCHESTRATOR_PRIVATE_KEY", type=click.File("rb"))
+@click.option("--token", envvar="DISCORD_TOKEN", help="Discord token for the bot to orchestrate.", required=True)
+@click.option(
+    "--intents",
+    default=hikari.Intents.ALL_UNPRIVILEGED,
+    envvar="ORCHESTRATOR_INTENTS",
+    help="Gateway intents the bot should use. Defaults to ALL_UNPRIVILEGED",
+    type=_cast_token,
+)
+@click.option("--log-level", default="INFO", envvar="LOG_LEVEL", help="A Python logging level name. Defaults to INFO.")
+@click.option(
+    "--ca-cert",
+    default=None,
+    envvar="ORCHESTRATOR_CA_CERT",
+    help="Path to an unencrypted PEM certificate authority to use for encrypting TCP connections.",
+    type=click.File("rb"),
+)
+@click.option(
+    "--private-key",
+    default=None,
+    help="Path to an unencrypted PEM private key to use for authenticating TCP connections.",
+    type=click.File("rb"),
+)
 def main(
     address: str,
     token: str,
@@ -75,7 +100,7 @@ def main(
     log_level: str,
     private_key: io.BytesIO | None,
 ) -> None:
-    logging.basicConfig(level=log_level.capitalize())
+    logging.basicConfig(level=log_level.upper())
     if ca_cert:
         ca_cert_data = ca_cert.read()
         ca_cert.close()

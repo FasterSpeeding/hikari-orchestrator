@@ -3,7 +3,7 @@ requires = ["flit_core >=3.3,<4,!=3.7"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "hikari-orchestrator"
+name = "hikari_orchestrator"
 version = "0.1.0"
 readme = "README.md"
 requires-python = ">=3.10.0,<3.12"
@@ -33,8 +33,8 @@ hikari_orchestrator = "hikari_orchestrator.__main__:main"
 [project.urls]
 Homepage = "https://github.com/FasterSpeeding/hikari-orchestrator"
 Repository = "https://github.com/FasterSpeeding/hikari-orchestrator"
-# Documentation = "https://hikari-orchestrator.cursed.solutions/"
-# Changelog = "https://github.com/FasterSpeeding/hikari-orchestrator/blob/master/CHANGELOG.md"
+Documentation = "https://h2o.cursed.solutions/"
+Changelog = "https://h2o.cursed.solutions/changelog"
 
 [tool.flit.module]
 name = "hikari_orchestrator"
@@ -143,21 +143,21 @@ default_sessions = [
 extra_test_installs = ["."]
 path_ignore = "hikari_orchestrator\\/_protos\\/"
 project_name = "hikari_orchestrator"
-top_level_targets = ["hikari_orchestrator", "./noxfile.py"]
+top_level_targets = ["docs_src", "hikari_orchestrator", "./noxfile.py"]
 
 [tool.piped.github_actions."*"]
 DEFAULT_PY_VER = "3.10"
 
 [tool.piped.github_actions.freeze_for_pr]
 [tool.piped.github_actions.lint]
-# [tool.piped.github_actions.pr_docs]
+[tool.piped.github_actions.pr_docs]
 [tool.piped.github_actions.publish]
 # [tool.piped.github_actions.py_test]
 # codeclimate_token = ""
 # python_versions = ["3.10", "3.11"]
 
 [tool.piped.github_actions.reformat]
-# [tool.piped.github_actions.release_docs]
+[tool.piped.github_actions.release_docs]
 [tool.piped.github_actions.resync_piped]
 [tool.piped.github_actions.type_check]
 [tool.piped.github_actions.update_licence]
@@ -167,7 +167,7 @@ DEFAULT_PY_VER = "3.10"
 
 [tool.pyright]
 exclude = ["hikari_orchestrator/_protos"]
-include = ["hikari_orchestrator", "noxfile.py"]
+include = ["docs_src", "hikari_orchestrator", "noxfile.py"]
 
 pythonVersion = "3.10"
 typeCheckingMode = "strict"

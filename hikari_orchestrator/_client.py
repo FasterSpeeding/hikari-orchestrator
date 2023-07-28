@@ -122,9 +122,22 @@ async def _handle_status(shard: _TrackedShard, /) -> None:
 
 
 class Client:
+    """Client for interacting with an orchestrator server instance."""
+
     __slots__ = ("_attributes", "_ca_cert", "_orchestrator_address", "_remote_shards", "_token_hash", "_tracked_shards")
 
     def __init__(self, token: str, orchestrator_address: str, /, *, ca_cert: bytes | None = None) -> None:
+        """Initialies an orchestrator client.
+
+        Parameters
+        ----------
+        token
+            Discord token for the bot that's being orchestrated.
+        orchestrator_address
+            Address the orchestrator server is being hosted at.
+        ca_cert
+            The certificate authority being used by the server for TLS SSL.
+        """
         self._attributes: _LiveAttributes | None = None
         self._ca_cert = ca_cert
         self._orchestrator_address = orchestrator_address
@@ -140,21 +153,29 @@ class Client:
 
     @property
     def remote_shards(self) -> collections.abc.Mapping[int, hikari.api.GatewayShard]:
+        """Mapping of shard IDs to shard objects.
+
+        These shard objects can be used to remotely monitor and control shards
+        and will only be populated while the client is active.
+        """
         return self._remote_shards
 
     def _call_credentials(self) -> grpc.CallCredentials:
         return grpc.access_token_call_credentials(self._token_hash)
 
     async def fetch_config(self) -> _protos.Config:
+        """Fetch the bot config."""
         return await self._get_live().orchestrator.GetConfig(_protos.Undefined(), credentials=self._call_credentials())
 
     async def fetch_all_states(self) -> collections.abc.Sequence[_protos.Shard]:
+        """Fetch the states of all of the bot's shards."""
         states = await self._get_live().orchestrator.GetAllStates(
             _protos.Undefined(), credentials=self._call_credentials()
         )
         return states.shards
 
     async def start(self) -> None:
+        """Start the client by connecting to the orchestrator."""
         if self._attributes:
             raise RuntimeError("Already running")
 
@@ -173,6 +194,7 @@ class Client:
             )
 
     async def stop(self) -> None:
+        """Stop the orchestrator client."""
         if not self._attributes:
             raise RuntimeError("Not running")
 
@@ -187,6 +209,7 @@ class Client:
         raise NotImplementedError
 
     async def recommended_shard(self, make_shard: collections.abc.Callable[[_protos.Shard], _ShardT], /) -> _ShardT:
+        """Acquire the next shard recommended by the server."""
         live_attrs = self._get_live()
         stream = live_attrs.orchestrator.AcquireNext(credentials=self._call_credentials())
 
@@ -269,6 +292,25 @@ class Client:
         activity: hikari.UndefinedNoneOr[hikari.Activity] = hikari.UNDEFINED,
         status: hikari.UndefinedOr[hikari.Status] = hikari.UNDEFINED,
     ) -> None:
+        """Update the presence of every shard in this bot.
+
+        This state will be remembered between restarts.
+
+        Parameters
+        ----------
+        idle_since
+            The datetime that the user started being idle. If undefined, this
+            will not be changed.
+        afk
+            If `True`, the user is marked as AFK. If `False`,
+            the user is marked as being active. If undefined, this will not be
+            changed.
+        activity
+            The activity to appear to be playing. If undefined, this will not be
+            changed.
+        status
+            The web status to show. If undefined, this will not be changed.
+        """
         idle_timestamp, undefined_idle = _or_undefined(idle_since)
         if idle_timestamp:
             raw_idle_timestamp = idle_timestamp
@@ -301,6 +343,23 @@ class Client:
         self_mute: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
         self_deaf: hikari.UndefinedOr[bool] = hikari.UNDEFINED,
     ) -> None:
+        """Update the voice state in a given guild.
+
+        Parameters
+        ----------
+        guild
+            The guild or guild ID to update the voice state for.
+        channel
+            The channel or channel ID to update the voice state for. If `None`
+            then the bot will leave the voice channel that it is in for the
+            given guild.
+        self_mute
+            If specified and `True`, the bot will mute itself in that
+            voice channel. If `False`, then it will unmute itself.
+        self_deaf
+            If specified and `True`, the bot will deafen itself in that
+            voice channel. If `False`, then it will undeafen itself.
+        """
         state = _protos.VoiceState(
             guild_id=int(guild),
             channel_id=None if channel is None else int(channel),
@@ -321,6 +380,52 @@ class Client:
         users: hikari.UndefinedOr[hikari.SnowflakeishSequence[hikari.User]] = hikari.UNDEFINED,
         nonce: hikari.UndefinedOr[str] = hikari.UNDEFINED,
     ) -> None:
+        """Request for a guild chunk.
+
+        The received guild chunks will be sent to the shard the guild is in,
+        not necessarily the current shard.
+
+        !!! note
+            To request the full list of members, leave `query` as `""` (empty
+            string) and `limit` as `0`.
+
+        Parameters
+        ----------
+        guild
+            The guild to request chunk for.
+        include_presences : hikari.undefined.UndefinedOr[bool]
+            If provided, whether to request presences.
+        query
+            If not `""`, request the members which username starts with the string.
+        limit
+            Maximum number of members to send matching the query.
+        users
+            If provided, the users to request for.
+        nonce
+            If provided, the nonce to be sent with guild chunks.
+
+        Raises
+        ------
+        ValueError
+            When trying to specify `users` with `query`/`limit`, if `limit` is not between
+            0 and 100, both inclusive or if `users` length is over 100.
+        hikari.errors.MissingIntentError
+            When trying to request presences without the `GUILD_MEMBERS` or when trying to
+            request the full list of members without `GUILD_PRESENCES`.
+        """
+        if users is not hikari.UNDEFINED:
+            if query or limit:
+                raise ValueError("Cannot pass `users` when `query` or `limit` have been passed")
+
+            if len(users) > 100:
+                raise ValueError("Cannot request more than 100 users")
+
+        if not 0 <= limit <= 100:
+            raise ValueError("`limit` must be inclusively between 0 and 100")
+
+        if nonce and len(bytes(nonce, "utf-8")) > 32:
+            raise ValueError("`nonce` cannot be longer than 32 bytes")
+
         request = _protos.RequestGuildMembers(
             guild_id=int(guild),
             include_presences=None if include_presences is hikari.UNDEFINED else include_presences,

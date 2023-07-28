@@ -31,10 +31,10 @@
 """System for managing hikari shards across processes/systems."""
 from __future__ import annotations
 
-__all__ = ["Bot", "run_server", "run_subprocesses", "spawn_subprocesses"]
+__all__ = ["Bot", "Client", "run_server", "run_subprocesses", "spawn_subprocesses"]
 
 from ._bot import Bot
-from ._client import Client as Client  # noqa: F401
+from ._client import Client
 from ._service import run_server
 from ._service import run_subprocesses
 from ._service import spawn_subprocesses
