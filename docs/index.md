@@ -30,7 +30,7 @@ On a larger scale Hikari Orchestrator can also be used to manage shards across
 different machines.
 
 ```shell
-python -m hikari-orchestrator tcp://localhost:6969 --token "Bot.Token"
+hikari_orchestrator tcp://localhost:6969 --token "Bot.Token"
 ```
 
 For this you'll first want to start up an Orchestrator server using the CLI
@@ -59,7 +59,7 @@ Optional arguments:
 
 These options and arguments can also be provided as environment variables
 (including through a `.env` file); to see the relevant env variable names use
-`hikari-orchestrator --help`.
+`hikari_orchestrator --help`.
 
 ```py
 --8<-- "./docs_src/index.py:27:31"

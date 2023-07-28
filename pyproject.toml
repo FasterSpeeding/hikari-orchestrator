@@ -3,7 +3,7 @@ requires = ["flit_core >=3.3,<4,!=3.7"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "hikari-orchestrator"
+name = "hikari_orchestrator"
 version = "0.1.0"
 readme = "README.md"
 requires-python = ">=3.10.0,<3.12"
@@ -28,13 +28,13 @@ dependencies = ["click>=8, <9", "cryptography>=41, <42", "grpcio>=1, <2", "grpci
 dynamic = ["description"]
 
 [project.scripts]
-hikari-orchestrator = "hikari_orchestrator.__main__:main"
+hikari_orchestrator = "hikari_orchestrator.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/FasterSpeeding/hikari-orchestrator"
 Repository = "https://github.com/FasterSpeeding/hikari-orchestrator"
-# Documentation = "https://hikari-orchestrator.cursed.solutions/"
-# Changelog = "https://github.com/FasterSpeeding/hikari-orchestrator/blob/master/CHANGELOG.md"
+Documentation = "https://h2o.cursed.solutions/"
+Changelog = "https://h2o.cursed.solutions/changelog"
 
 [tool.flit.module]
 name = "hikari_orchestrator"
