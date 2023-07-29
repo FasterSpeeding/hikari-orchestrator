@@ -1,4 +1,4 @@
-# hikari_orchestrator
+# Hikari Orchestrator
 
 A cute lil tool for orchestrating separate Hikari shard clusters.
 
