@@ -40,7 +40,7 @@ import hikari
 from . import _service  # pyright: ignore[reportPrivateUsage]
 
 
-def _cast_token(value: str, /) -> hikari.Intents:
+def _cast_intents(value: str, /) -> hikari.Intents:
     try:
         int_value = int(value)
     except ValueError:
@@ -76,7 +76,7 @@ https://github.com/grpc/grpc/blob/master/doc/naming.md
     default=hikari.Intents.ALL_UNPRIVILEGED,
     envvar="ORCHESTRATOR_INTENTS",
     help="Gateway intents the bot should use. Defaults to ALL_UNPRIVILEGED",
-    type=_cast_token,
+    type=_cast_intents,
 )
 @click.option("--log-level", default="INFO", envvar="LOG_LEVEL", help="A Python logging level name. Defaults to INFO.")
 @click.option(
