@@ -58,9 +58,14 @@ And several optional arguments:
   the certificate authority and private key for the server to use to SSL
   encrypt TCP connections.
 
-These options and arguments can also be provided as environment variables
-(including as part of a `.env` file); to see the relevant env variable names
-use `hikari_orchestrator --help`.
+These arguments can also be provided using the following environment variables
+(including as part of a `.env` file):
+
+- `address`: `ORCHESTRATOR_ADDRESS`
+- `--token`: `DISCORD_TOKEN`
+- `--log-level`: `LOG_LEVEL`
+- `--ca-cert`: `ORCHESTRATOR_CA_CERT`
+- `--private-key`: `ORCHESTRATOR_PRIVATE_KEY`
 
 ```py
 --8<-- "./docs_src/index.py:27:31"
