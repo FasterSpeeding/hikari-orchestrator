@@ -39,33 +39,28 @@ hikari_orchestrator tcp://localhost:6969 --token "Bot.Token"
 
 The CLI application has two required arguments:
 
-- The server's host address is the only positional argument. TCP will be used
-  if no scheme is included and more information on the supported schemes can be
-  found [here](https://github.com/grpc/grpc/blob/master/doc/naming.md).
-- `--token`: The Discord bot token for the bot being orchestrated.
-  It's recommended that you provide this via its env variable rather than as a
-  CLI argument .
+- (`ORCHESTRATOR_ADDRESS`): The server's host address is the only positional
+  argument. TCP will be used if no scheme is included and more information on
+  the supported schemes can be found
+  [here](https://github.com/grpc/grpc/blob/master/doc/naming.md).
+- `--token` (`DISCORD_TOKEN`): The Discord bot token for the bot being
+  orchestrated. It's recommended that you provide this via its env variable
+  rather than as a CLI argument .
 
 And several optional arguments:
 
-- `--intents`: The gateway intents the bot should declare. This defaults to
-  `ALL_UNPRIVILEGED` and supports passing either the raw integer flag or a
-  `|`-separated list of intent names as defined by [hikari.Intents][hikari.intents.Intents]
-  (e.g. `GUILD_MEMBERS|GUILD_MODERATION`).
-- `--log-level`: Name of the logging level the server should use.
+- `--intents` (`ORCHESTRATOR_INTENTS`): The gateway intents the bot should
+  declare. This defaults to `ALL_UNPRIVILEGED` and supports passing either the
+  raw integer flag or a `|`-separated list of intent names as defined by
+  [hikari.Intents][hikari.intents.Intents] (e.g. `GUILD_MEMBERS|GUILD_MODERATION`).
+- `--log-level` (`LOG_LEVEL`): Name of the logging level the server should use.
   Defaults to `"INFO"`.
-- `--ca-cert` & `--private-key`: Paths to the unencrypted PEM keys which act as
-  the certificate authority and private key for the server to use to SSL
-  encrypt TCP connections.
+- `--ca-cert` & `--private-key` (`ORCHESTRATOR_CA_CERT` & `ORCHESTRATOR_PRIVATE_KEY`):
+  Paths to the unencrypted PEM keys which act as the certificate authority and
+  private key for the server to use to SSL encrypt TCP connections.
 
-These arguments can also be provided using the following environment variables
-(including as part of a `.env` file):
-
-- `address`: `ORCHESTRATOR_ADDRESS`
-- `--token`: `DISCORD_TOKEN`
-- `--log-level`: `LOG_LEVEL`
-- `--ca-cert`: `ORCHESTRATOR_CA_CERT`
-- `--private-key`: `ORCHESTRATOR_PRIVATE_KEY`
+These arguments can also be provided using the environment variables which are
+shown in brackets (including as part of a `.env` file).
 
 ```py
 --8<-- "./docs_src/index.py:27:31"
