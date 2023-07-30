@@ -89,10 +89,11 @@ https://github.com/grpc/grpc/blob/master/doc/naming.md
 @click.option(
     "--private-key",
     default=None,
+    envvar="ORCHESTRATOR_PRIVATE_KEY",
     help="Path to an unencrypted PEM private key to use for authenticating TCP connections.",
     type=click.File("rb"),
 )
-def main(
+def _cli_entry(
     address: str,
     token: str,
     ca_cert: io.BytesIO | None,
@@ -118,6 +119,10 @@ def main(
     _service.run_server(token, address, ca_cert=ca_cert_data, private_key=private_key_data, intents=intents)
 
 
-if __name__ == "__main__":
+def main() -> None:
     dotenv.load_dotenv()
+    _cli_entry()
+
+
+if __name__ == "__main__":
     main()
