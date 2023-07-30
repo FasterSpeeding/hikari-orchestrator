@@ -52,7 +52,7 @@ And several optional arguments:
 - `--intents` (`ORCHESTRATOR_INTENTS`): The gateway intents the bot should
   declare. This defaults to `ALL_UNPRIVILEGED` and supports passing either the
   raw integer flag or a `|`-separated list of intent names as defined by
-  [hikari.Intents][hikari.intents.Intents] (e.g. `GUILD_MEMBERS|GUILD_MODERATION`).
+  [hikari.Intents][hikari.intents.Intents] (e.g. `"GUILD_MEMBERS|GUILD_MODERATION"`).
 - `--log-level` (`LOG_LEVEL`): Name of the logging level the server should use.
   Defaults to `"INFO"`.
 - `--ca-cert` & `--private-key` (`ORCHESTRATOR_CA_CERT` & `ORCHESTRATOR_PRIVATE_KEY`):
