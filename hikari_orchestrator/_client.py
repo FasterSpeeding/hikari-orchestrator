@@ -127,7 +127,7 @@ class Client:
     __slots__ = ("_attributes", "_ca_cert", "_orchestrator_address", "_remote_shards", "_token_hash", "_tracked_shards")
 
     def __init__(self, token: str, orchestrator_address: str, /, *, ca_cert: bytes | None = None) -> None:
-        """Initialies an orchestrator client.
+        """Initialise an orchestrator client.
 
         Parameters
         ----------

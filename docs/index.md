@@ -75,5 +75,5 @@ shards the bot instance should try to startup.
 
 !!! note
     To use SSL encryption for TCP connections you'll need to pass the
-    unecrypted certificate authority PEM as bytes to
+    unencrypted certificate authority PEM as bytes to
     [Bot.\_\_init\_\_][hikari_orchestrator.Bot.__init__] as `ca_cert=bytes`.
