@@ -69,11 +69,7 @@ def _cast_intents(value: str, /) -> hikari.Intents:
 
 
 _HELP = """
-Command line entry points for Hikari Orchestrator: a tool for managing Hikari shard clusters.
-
-`hikari_orchestrator server` lets you run a standalone orchestrator server.
-`hikari_orchestrator run` lets you run a multi-process bot managed by orchestrator.
-"""
+Command line entry points for Hikari Orchestrator: a tool for managing Hikari shard clusters."""
 
 
 @click.group(help=_HELP, invoke_without_command=True)
@@ -82,7 +78,7 @@ def _cli_entry() -> None:
 
 
 _RUN_HELP = """
-Run a multi-process Hikari bot on the current system.
+Run a standalone multi-process Hikari bot on the current system.
 
 Both `--entrypoint` and `--token` must be passed (either directly or as env variables).
 """
@@ -152,6 +148,7 @@ def _run_cmd(  # pyright: ignore[reportUnusedFunction]
 
 _SERVER_HELP = """
 Run a Hikari Orchestrator server instance.
+
 The `ADDRESS` for this server will default to TCP if no scheme is included and
 the valid schemes can be found at
 https://github.com/grpc/grpc/blob/master/doc/naming.md
