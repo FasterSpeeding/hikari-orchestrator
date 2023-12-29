@@ -81,7 +81,6 @@ def _cli_entry() -> None:
     ...
 
 
-# TODO: properly document help
 _RUN_HELP = """
 Run a multi-process Hikari bot on the current system.
 
