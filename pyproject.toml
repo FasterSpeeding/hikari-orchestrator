@@ -30,6 +30,7 @@ dynamic = ["description"]
 
 [project.scripts]
 hikari_orchestrator = "hikari_orchestrator.__main__:main"
+hor = "hikari_orchestrator.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/FasterSpeeding/hikari-orchestrator"

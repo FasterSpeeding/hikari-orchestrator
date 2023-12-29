@@ -40,6 +40,12 @@ import hikari
 
 from . import _service  # pyright: ignore[reportPrivateUsage]
 
+_ENV_PREFIX = "ORCHESTRATOR_"
+
+
+def _env_name(name: str) -> str:
+    return f"{_ENV_PREFIX}{name}"
+
 
 def _cast_intents(value: str, /) -> hikari.Intents:
     try:
@@ -62,34 +68,97 @@ def _cast_intents(value: str, /) -> hikari.Intents:
 
 
 _HELP = """
-Run a Hikari Orchestrator server instance.
-The `ADDRESS` for this server will default to TCP if no scheme is included and
-the valid schemes can be found at
-https://github.com/grpc/grpc/blob/master/doc/naming.md
+Command line entry points for Hikari Orchestrator: a tool for managing Hikari shard clusters.
+
+`hikari_orchestrator server` lets you run a standalone orchestrator server.
+`hikari_orchestrator run` lets you run a multi-process bot managed by orchestrator.
 """
 
-_ENV_PREFIX = "ORCHESTRATOR_"
+
+@click.group(help=_HELP, invoke_without_command=True)
+def _cli_entry() -> None:
+    ...
 
 
-def _env_name(name: str) -> str:
-    return f"{_ENV_PREFIX}{name}"
+# TODO: properly document help
+_RUN_HELP = """
+Run a multi-process Hikari bot on the current system.
+
+Both `--entrypoint` and `--token` must be passed (either directly or as env variables).
+"""
 
 
-@click.command(help=_HELP)
-@click.argument("address", default="localhost:0", envvar=_env_name("ADDRESS"))
+@_cli_entry.group(help=_RUN_HELP)
+@click.option(
+    "--entrypoint",
+    envvar=_env_name("ENTRYPOINT"),
+    help=(
+        "Path to the function which will be called with each initialised bot object. "
+        "This must be in the format '{module_path}:{function_name}'."
+    ),
+    required=True,
+)
 @click.option("--token", envvar="DISCORD_TOKEN", help="Discord token for the bot to orchestrate.", required=True)
 @click.option(
     "--intents",
     default=hikari.Intents.ALL_UNPRIVILEGED,
     envvar=_env_name("INTENTS"),
-    help="Gateway intents the bot should use. Defaults to ALL_UNPRIVILEGED",
+    help="Gateway intents the bot should use. Defaults to ALL_UNPRIVILEGED.",
     type=_cast_intents,
 )
 @click.option(
     "--shard-count",
     default=None,
     envvar=_env_name("SHARD_COUNT"),
-    help="The amount of shards to run for the bot. Defaults to Discord's recommended amount",
+    help="The amount of shards to run for the bot. Defaults to Discord's recommended amount.",
+    type=int,
+)
+@click.option("--log-level", default="INFO", envvar="LOG_LEVEL", help="A Python logging level name. Defaults to INFO.")
+@click.option(
+    "--process-count",
+    default=_service.DEFAULT_SUBPROCESS_COUNT,
+    envvar=_env_name("PROCESS_COUNT"),
+    help="The amount of child processes to spawn. Default's to the system's CPU thread count.",
+    type=int,
+)
+def run(
+    entrypoint: str, token: str, intents: hikari.Intents, shard_count: int | None, log_level: str, process_count: int
+) -> None:
+    logging.basicConfig(level=log_level.upper())
+    module_path, callback_name = entrypoint.split(":", 1)
+    callback = getattr(importlib.import_module(module_path), callback_name, None)
+
+    if not callable(callback):
+        raise RuntimeError(f"{entrypoint!r} is not a function")
+
+    _service.run_subprocesses(
+        token, callback=callback, intents=intents, shard_count=shard_count, subprocess_count=process_count
+    )
+
+
+_SERVER_HELP = """
+Run a Hikari Orchestrator server instance.
+The `ADDRESS` for this server will default to TCP if no scheme is included and
+the valid schemes can be found at
+https://github.com/grpc/grpc/blob/master/doc/naming.md
+"""
+
+
+@_cli_entry.command(help=_SERVER_HELP)
+@click.argument("address", default="localhost:0", envvar=_env_name("ADDRESS"))
+@click.option("--token", envvar="DISCORD_TOKEN", help="Discord token for the bot to orchestrate.", required=True)
+@click.option(
+    "--intents",
+    default=hikari.Intents.ALL_UNPRIVILEGED,
+    envvar=_env_name("INTENTS"),
+    help="Gateway intents the bot should use. Defaults to ALL_UNPRIVILEGED.",
+    type=_cast_intents,
+)
+@click.option(
+    "--shard-count",
+    default=None,
+    envvar=_env_name("SHARD_COUNT"),
+    help="The amount of shards to run for the bot. Defaults to Discord's recommended amount.",
     type=int,
 )
 @click.option("--log-level", default="INFO", envvar="LOG_LEVEL", help="A Python logging level name. Defaults to INFO.")
@@ -97,50 +166,26 @@ def _env_name(name: str) -> str:
     "--ca-cert",
     default=None,
     envvar=_env_name("CA_CERT"),
-    help="Path to an unencrypted PEM certificate authority to use for encrypting TCP connections.",
+    help="System path to an unencrypted PEM certificate authority to use for encrypting TCP connections.",
     type=click.File("rb"),
 )
 @click.option(
     "--private-key",
     default=None,
     envvar=_env_name("PRIVATE_KEY"),
-    help="Path to an unencrypted PEM private key to use for authenticating TCP connections.",
+    help="System path to an unencrypted PEM private key to use for authenticating TCP connections.",
     type=click.File("rb"),
 )
-# TODO: better docs for the "child" system
-@click.option(
-    "--child-factory",
-    default=None,
-    envvar=_env_name("CHILD_FACTORY"),
-    help="Entry point to use to spawn child processes.",
-)
-@click.option(
-    "--child-count",
-    default=_service.DEFAULT_SUBPROCESS_COUNT,
-    envvar=_env_name("CHILD_COUNT"),
-    help="The amount of child processes to spawn when `--child-entry` is also passed.",
-    type=int,
-)
-def _cli_entry(
+def server(
     address: str,
     token: str,
-    ca_cert: io.BytesIO | None,
     intents: hikari.Intents,
     shard_count: int | None,
     log_level: str,
+    ca_cert: io.BytesIO | None,
     private_key: io.BytesIO | None,
-    child_factory: str | None,
-    child_count: int,
 ) -> None:
     logging.basicConfig(level=log_level.upper())
-
-    if child_factory:
-        module_path, function_name = child_factory.split(":", 1)
-        function = getattr(importlib.import_module(module_path), function_name)
-        _service.run_subprocesses(
-            token, callback=function, intents=intents, shard_count=shard_count, subprocess_count=child_count
-        )
-        return
 
     if ca_cert:
         ca_cert_data = ca_cert.read()
