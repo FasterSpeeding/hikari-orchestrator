@@ -33,6 +33,7 @@ from __future__ import annotations
 import importlib
 import io
 import logging
+import sys
 
 import click
 import dotenv
@@ -88,7 +89,7 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
 """
 
 
-@_cli_entry.group(help=_RUN_HELP)
+@_cli_entry.command(help=_RUN_HELP)
 @click.option(
     "--entrypoint",
     envvar=_env_name("ENTRYPOINT"),
@@ -121,15 +122,28 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
     help="The amount of child processes to spawn. Default's to the system's CPU thread count.",
     type=int,
 )
+@click.option(
+    "--callback-dir",
+    default=".",
+    envvar=_env_name("CALLBACK_DIR"),
+    help="Look for callback's module in the specified directory. This defaults to the current working directory.",
+)
 def run(
-    entrypoint: str, token: str, intents: hikari.Intents, shard_count: int | None, log_level: str, process_count: int
+    entrypoint: str,
+    token: str,
+    intents: hikari.Intents,
+    shard_count: int | None,
+    log_level: str,
+    process_count: int,
+    callback_dir: str,
 ) -> None:
+    sys.path.insert(0, callback_dir)
     logging.basicConfig(level=log_level.upper())
     module_path, callback_name = entrypoint.split(":", 1)
-    callback = getattr(importlib.import_module(module_path), callback_name, None)
+    callback = getattr(importlib.import_module(module_path), callback_name, "<NOT FOUND>")
 
     if not callable(callback):
-        raise RuntimeError(f"{entrypoint!r} is not a function")
+        raise RuntimeError(f"{entrypoint!r} ({callback!r}) is not a function")
 
     _service.run_subprocesses(
         token, callback=callback, intents=intents, shard_count=shard_count, subprocess_count=process_count
