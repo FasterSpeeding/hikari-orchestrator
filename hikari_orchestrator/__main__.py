@@ -88,7 +88,7 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
 """
 
 
-@_cli_entry.command(help=_RUN_HELP)
+@_cli_entry.command(name="run", help=_RUN_HELP)
 @click.option(
     "--entrypoint",
     "-ep",
@@ -128,7 +128,7 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
     envvar=_env_name("CALLBACK_DIR"),
     help="Look for callback's module in the specified directory. This defaults to the current working directory.",
 )
-def run(
+def _run_cmd(  # pyright: ignore[reportUnusedFunction]
     entrypoint: str,
     token: str,
     intents: hikari.Intents,
@@ -158,7 +158,7 @@ https://github.com/grpc/grpc/blob/master/doc/naming.md
 """
 
 
-@_cli_entry.command(help=_SERVER_HELP)
+@_cli_entry.command(name="server", help=_SERVER_HELP)
 @click.argument("address", default="localhost:0", envvar=_env_name("ADDRESS"))
 @click.option("--token", envvar="DISCORD_TOKEN", help="Discord token for the bot to orchestrate.", required=True)
 @click.option(
@@ -190,7 +190,7 @@ https://github.com/grpc/grpc/blob/master/doc/naming.md
     help="System path to an unencrypted PEM private key to use for authenticating TCP connections.",
     type=click.File("rb"),
 )
-def server(
+def _server_cmd(  # pyright: ignore[reportUnusedFunction]
     address: str,
     token: str,
     intents: hikari.Intents,
