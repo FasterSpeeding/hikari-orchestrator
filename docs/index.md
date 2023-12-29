@@ -35,7 +35,7 @@ Subprocess bots can also be created using the `hikari_orchestrator run`
 This CLI command has two required arguments:
 
 - `--entrypoint`/`-ep` (`ORCHESTRATOR_ENTRYPOINT`): Path to the function which
-  will be called as with each initialised
+  will be called with each initialised
   [hikari.GatewayBotAware][hikari.traits.GatewayBotAware] object.
   This must be in the format of  `{module_path}:{function_name}`.
 - `token` (`DISCORD_TOKEN`): The bot's Discord token. It's recommended that

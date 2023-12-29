@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - `hor` commandline shorthand for `hikari_orchestrator`.
-- `hikari_orchestrator run` command for spawning a multiprocess bot from a entry function and basic config.
+- `hikari_orchestrator run` command for spawning a multiprocess bot from an entry function and basic config.
 
 ### Changed
 - Renamed the `hikari_orchestrator` commandline command to `hikari_orchestrator server`.

@@ -100,7 +100,8 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
     "--intents",
     default=hikari.Intents.ALL_UNPRIVILEGED,
     envvar=_env_name("INTENTS"),
-    help="Gateway intents the bot should use. Defaults to ALL_UNPRIVILEGED.",
+    show_default=True,
+    help="Gateway intents the bot should use.",
     type=_cast_intents,
 )
 @click.option(
@@ -110,19 +111,21 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
     help="The amount of shards to run for the bot. Defaults to Discord's recommended amount.",
     type=int,
 )
-@click.option("--log-level", default="INFO", envvar="LOG_LEVEL", help="A Python logging level name. Defaults to INFO.")
+@click.option("--log-level", default="INFO", envvar="LOG_LEVEL", help="A Python logging level name.", show_default=True)
 @click.option(
     "--process-count",
     default=_service.DEFAULT_SUBPROCESS_COUNT,
     envvar=_env_name("PROCESS_COUNT"),
-    help="The amount of child processes to spawn. Default's to the system's CPU thread count.",
+    help="The amount of child processes to spawn.",
+    show_default=True,
     type=int,
 )
 @click.option(
     "--entrypoint-dir",
     default=".",
     envvar=_env_name("ENTRYPOINT_DIR"),
-    help="Look for the entrypoint's module in the specified directory. This defaults to the current working directory.",
+    help="Look for the entrypoint's module in the specified directory.",
+    show_default=True,
 )
 def _run_cmd(  # pyright: ignore[reportUnusedFunction]
     entrypoint: str,
@@ -162,7 +165,8 @@ https://github.com/grpc/grpc/blob/master/doc/naming.md
     "--intents",
     default=hikari.Intents.ALL_UNPRIVILEGED,
     envvar=_env_name("INTENTS"),
-    help="Gateway intents the bot should use. Defaults to ALL_UNPRIVILEGED.",
+    help="Gateway intents the bot should use.",
+    show_default=True,
     type=_cast_intents,
 )
 @click.option(
@@ -172,7 +176,7 @@ https://github.com/grpc/grpc/blob/master/doc/naming.md
     help="The amount of shards to run for the bot. Defaults to Discord's recommended amount.",
     type=int,
 )
-@click.option("--log-level", default="INFO", envvar="LOG_LEVEL", help="A Python logging level name. Defaults to INFO.")
+@click.option("--log-level", default="INFO", envvar="LOG_LEVEL", help="A Python logging level name.", show_default=True)
 @click.option(
     "--ca-cert",
     default=None,
