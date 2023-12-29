@@ -92,6 +92,7 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
 @_cli_entry.command(help=_RUN_HELP)
 @click.option(
     "--entrypoint",
+    "-ep",
     envvar=_env_name("ENTRYPOINT"),
     help=(
         "Path to the function which will be called with each initialised bot object. "
