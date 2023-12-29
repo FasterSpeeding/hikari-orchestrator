@@ -30,6 +30,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
+import importlib
 import io
 import logging
 
@@ -67,41 +68,80 @@ the valid schemes can be found at
 https://github.com/grpc/grpc/blob/master/doc/naming.md
 """
 
+_ENV_PREFIX = "ORCHESTRATOR_"
+
+
+def _env_name(name: str) -> str:
+    return f"{_ENV_PREFIX}{name}"
+
 
 @click.command(help=_HELP)
-@click.argument("address", default="localhost:0", envvar="ORCHESTRATOR_ADDRESS")
+@click.argument("address", default="localhost:0", envvar=_env_name("ADDRESS"))
 @click.option("--token", envvar="DISCORD_TOKEN", help="Discord token for the bot to orchestrate.", required=True)
 @click.option(
     "--intents",
     default=hikari.Intents.ALL_UNPRIVILEGED,
-    envvar="ORCHESTRATOR_INTENTS",
+    envvar=_env_name("INTENTS"),
     help="Gateway intents the bot should use. Defaults to ALL_UNPRIVILEGED",
     type=_cast_intents,
+)
+@click.option(
+    "--shard-count",
+    default=None,
+    envvar=_env_name("SHARD_COUNT"),
+    help="The amount of shards to run for the bot. Defaults to Discord's recommended amount",
+    type=int,
 )
 @click.option("--log-level", default="INFO", envvar="LOG_LEVEL", help="A Python logging level name. Defaults to INFO.")
 @click.option(
     "--ca-cert",
     default=None,
-    envvar="ORCHESTRATOR_CA_CERT",
+    envvar=_env_name("CA_CERT"),
     help="Path to an unencrypted PEM certificate authority to use for encrypting TCP connections.",
     type=click.File("rb"),
 )
 @click.option(
     "--private-key",
     default=None,
-    envvar="ORCHESTRATOR_PRIVATE_KEY",
+    envvar=_env_name("PRIVATE_KEY"),
     help="Path to an unencrypted PEM private key to use for authenticating TCP connections.",
     type=click.File("rb"),
+)
+# TODO: better docs for the "child" system
+@click.option(
+    "--child-factory",
+    default=None,
+    envvar=_env_name("CHILD_FACTORY"),
+    help="Entry point to use to spawn child processes.",
+)
+@click.option(
+    "--child-count",
+    default=_service.DEFAULT_SUBPROCESS_COUNT,
+    envvar=_env_name("CHILD_COUNT"),
+    help="The amount of child processes to spawn when `--child-entry` is also passed.",
+    type=int,
 )
 def _cli_entry(
     address: str,
     token: str,
     ca_cert: io.BytesIO | None,
     intents: hikari.Intents,
+    shard_count: int | None,
     log_level: str,
     private_key: io.BytesIO | None,
+    child_factory: str | None,
+    child_count: int,
 ) -> None:
     logging.basicConfig(level=log_level.upper())
+
+    if child_factory:
+        module_path, function_name = child_factory.split(":", 1)
+        function = getattr(importlib.import_module(module_path), function_name)
+        _service.run_subprocesses(
+            token, callback=function, intents=intents, shard_count=shard_count, subprocess_count=child_count
+        )
+        return
+
     if ca_cert:
         ca_cert_data = ca_cert.read()
         ca_cert.close()
@@ -116,7 +156,9 @@ def _cli_entry(
     else:
         private_key_data = None
 
-    _service.run_server(token, address, ca_cert=ca_cert_data, private_key=private_key_data, intents=intents)
+    _service.run_server(
+        token, address, ca_cert=ca_cert_data, private_key=private_key_data, intents=intents, shard_count=shard_count
+    )
 
 
 def main() -> None:
