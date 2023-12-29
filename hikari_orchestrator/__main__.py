@@ -123,10 +123,10 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
     type=int,
 )
 @click.option(
-    "--callback-dir",
+    "--entrypoint-dir",
     default=".",
-    envvar=_env_name("CALLBACK_DIR"),
-    help="Look for callback's module in the specified directory. This defaults to the current working directory.",
+    envvar=_env_name("ENTRYPOINT_DIR"),
+    help="Look for the entrypoint's module in the specified directory. This defaults to the current working directory.",
 )
 def _run_cmd(  # pyright: ignore[reportUnusedFunction]
     entrypoint: str,
@@ -135,9 +135,9 @@ def _run_cmd(  # pyright: ignore[reportUnusedFunction]
     shard_count: int | None,
     log_level: str,
     process_count: int,
-    callback_dir: str,
+    entrypoint_dir: str,
 ) -> None:
-    sys.path.insert(0, callback_dir)
+    sys.path.insert(0, entrypoint_dir)
     logging.basicConfig(level=log_level.upper())
     module_path, callback_name = entrypoint.split(":", 1)
     callback = getattr(importlib.import_module(module_path), callback_name, "<NOT FOUND>")
