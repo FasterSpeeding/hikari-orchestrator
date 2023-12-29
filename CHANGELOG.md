@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- `hor` commandline shorthand for `hikari_orchestrator`.
+- `hikari_orchestrator run` command for spawning a multiprocess bot from an entry function and basic config.
+
+### Changed
+- Renamed the `hikari_orchestrator` commandline command to `hikari_orchestrator server`.
+
 ## [0.1.2] - 2023-12-29
 ### Added
 - Support for Python 3.12.

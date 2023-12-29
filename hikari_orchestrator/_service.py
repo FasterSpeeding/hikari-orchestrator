@@ -52,7 +52,7 @@ from . import _protos
 from . import _ssl
 
 _LOGGER = logging.getLogger("hikari.orchestrator")
-_DEFAULT_SUBPROCESS_COUNT = os.cpu_count() or 1
+DEFAULT_SUBPROCESS_COUNT = os.cpu_count() or 1
 
 
 def _now() -> datetime.datetime:
@@ -391,7 +391,7 @@ async def spawn_subprocesses(
     callback: collections.Callable[[hikari.GatewayBotAware], None] | None = None,
     shard_count: int | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
-    subprocess_count: int = _DEFAULT_SUBPROCESS_COUNT,
+    subprocess_count: int = DEFAULT_SUBPROCESS_COUNT,
 ) -> None:
     """Asynchronously variant of [run_subprocesses][hikari_orchestrator.run_subprocesses].
 
@@ -455,7 +455,7 @@ def run_subprocesses(
     callback: collections.Callable[[hikari.GatewayBotAware], None] | None = None,
     shard_count: int | None = None,
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
-    subprocess_count: int = _DEFAULT_SUBPROCESS_COUNT,
+    subprocess_count: int = DEFAULT_SUBPROCESS_COUNT,
 ) -> None:
     """Run a bot across several procsesses.
 
