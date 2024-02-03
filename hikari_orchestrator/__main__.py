@@ -89,6 +89,7 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
     "--entrypoint",
     "-ep",
     envvar=_env_name("ENTRYPOINT"),
+    show_envvar=True,
     help=(
         "Path to the function which will be called with each initialised bot object. "
         "This must be in the format '{module_path}:{function_name}'."
@@ -100,6 +101,7 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
     "--intents",
     default=hikari.Intents.ALL_UNPRIVILEGED,
     envvar=_env_name("INTENTS"),
+    show_envvar=True,
     show_default=True,
     help="Gateway intents the bot should use.",
     type=_cast_intents,
@@ -108,6 +110,7 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
     "--shard-count",
     default=None,
     envvar=_env_name("SHARD_COUNT"),
+    show_envvar=True,
     help="The amount of shards to run for the bot. Defaults to Discord's recommended amount.",
     type=int,
 )
@@ -116,6 +119,7 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
     "--process-count",
     default=_service.DEFAULT_SUBPROCESS_COUNT,
     envvar=_env_name("PROCESS_COUNT"),
+    show_envvar=True,
     help="The amount of child processes to spawn.",
     show_default=True,
     type=int,
@@ -124,6 +128,7 @@ Both `--entrypoint` and `--token` must be passed (either directly or as env vari
     "--entrypoint-dir",
     default=".",
     envvar=_env_name("ENTRYPOINT_DIR"),
+    show_envvar=True,
     help="Look for the entrypoint's module in the specified directory.",
     show_default=True,
 )
@@ -165,6 +170,7 @@ https://github.com/grpc/grpc/blob/master/doc/naming.md
     "--intents",
     default=hikari.Intents.ALL_UNPRIVILEGED,
     envvar=_env_name("INTENTS"),
+    show_envvar=True,
     help="Gateway intents the bot should use.",
     show_default=True,
     type=_cast_intents,
@@ -173,6 +179,7 @@ https://github.com/grpc/grpc/blob/master/doc/naming.md
     "--shard-count",
     default=None,
     envvar=_env_name("SHARD_COUNT"),
+    show_envvar=True,
     help="The amount of shards to run for the bot. Defaults to Discord's recommended amount.",
     type=int,
 )
@@ -181,6 +188,7 @@ https://github.com/grpc/grpc/blob/master/doc/naming.md
     "--ca-cert",
     default=None,
     envvar=_env_name("CA_CERT"),
+    show_envvar=True,
     help="System path to an unencrypted PEM certificate authority to use for encrypting TCP connections.",
     type=click.File("rb"),
 )
@@ -188,6 +196,7 @@ https://github.com/grpc/grpc/blob/master/doc/naming.md
     "--private-key",
     default=None,
     envvar=_env_name("PRIVATE_KEY"),
+    show_envvar=True,
     help="System path to an unencrypted PEM private key to use for authenticating TCP connections.",
     type=click.File("rb"),
 )
