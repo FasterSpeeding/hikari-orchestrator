@@ -73,8 +73,7 @@ Command line entry points for Hikari Orchestrator: a tool for managing Hikari sh
 
 
 @click.group(help=_HELP, invoke_without_command=True)
-def _cli_entry() -> None:
-    ...
+def _cli_entry() -> None: ...
 
 
 _RUN_HELP = """
