@@ -3,6 +3,8 @@ site_name: "Hikari Orchestrator docs"
 repo_url: https://github.com/FasterSpeeding/hikari-orchestrator
 theme:
   name: material
+  features:
+    - navigation.prune
   icon:
     admonition:
       note: octicons/tag-16
