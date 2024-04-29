@@ -364,9 +364,9 @@ grpcio==1.62.2 ; python_full_version >= "3.10.0" and python_version < "3.13" \
     --hash=sha256:f27246d7da7d7e3bd8612f63785a7b0c39a244cf14b8dd9dd2f2fab939f2d7f1 \
     --hash=sha256:f4aa94361bb5141a45ca9187464ae81a92a2a135ce2800b2203134f7a1a1d479 \
     --hash=sha256:fa63245271920786f4cb44dcada4983a3516be8f470924528cf658731864c14b
-hikari==2.0.0.dev124 ; python_full_version >= "3.10.0" and python_version < "3.13" \
-    --hash=sha256:14433674ceb88f1b5167fd75037eb77005498e0ec478764311b4e3657b704a1b \
-    --hash=sha256:94d0ed699e2e3b7ed09fe351672f943474e9113bcd89329fb49d7313104161b3
+hikari==2.0.0.dev125 ; python_full_version >= "3.10.0" and python_version < "3.13" \
+    --hash=sha256:4c139e7f81089dc234e21d81177ca7d0d97bba974ac0de5a03b3e7e0ac0c6541 \
+    --hash=sha256:f9677386b77f58fcb04d1b91cd6f4f5b306014fb952b11615ef0ca3430296953
 idna==3.7 ; python_full_version >= "3.10.0" and python_version < "3.13" \
     --hash=sha256:028ff3aadf0609c1fd278d8ea3089299412a7a8b9bd005dd08b9f8285bcb5cfc \
     --hash=sha256:82fee1fc78add43492d3a1898bfa6d8a904cc97d8427f683ed8e798d07761aa0
