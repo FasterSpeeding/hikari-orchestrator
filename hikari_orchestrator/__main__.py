@@ -34,8 +34,8 @@ import importlib
 import io
 import logging
 import sys
-from collections import abc as collections
 import typing
+from collections import abc as collections
 
 import click
 import dotenv
