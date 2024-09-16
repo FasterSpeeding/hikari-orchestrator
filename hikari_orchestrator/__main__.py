@@ -34,6 +34,8 @@ import importlib
 import io
 import logging
 import sys
+from collections import abc as collections
+import typing
 
 import click
 import dotenv
@@ -148,6 +150,7 @@ def _run_cmd(  # pyright: ignore[reportUnusedFunction]
     if not callable(callback):
         raise RuntimeError(f"{entrypoint!r} ({callback!r}) is not a function")
 
+    callback = typing.cast(collections.Callable[..., typing.Any], callback)
     _service.run_subprocesses(
         token, callback=callback, intents=intents, shard_count=shard_count, subprocess_count=process_count
     )
