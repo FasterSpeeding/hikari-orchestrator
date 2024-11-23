@@ -150,7 +150,7 @@ def _run_cmd(  # pyright: ignore[reportUnusedFunction]
     if not callable(callback):
         raise RuntimeError(f"{entrypoint!r} ({callback!r}) is not a function")
 
-    callback = typing.cast(collections.abc.Callable[..., typing.Any], callback)
+    callback = typing.cast("collections.Callable[..., typing.Any]", callback)
     _service.run_subprocesses(
         token, callback=callback, intents=intents, shard_count=shard_count, subprocess_count=process_count
     )
