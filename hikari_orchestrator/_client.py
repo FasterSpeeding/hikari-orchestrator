@@ -53,7 +53,7 @@ if typing.TYPE_CHECKING:
 
 def _now() -> timestamp_pb2.Timestamp:
     timestamp = timestamp_pb2.Timestamp()
-    timestamp.FromDatetime(datetime.datetime.now(tz=datetime.timezone.utc))
+    timestamp.FromDatetime(datetime.datetime.now(tz=datetime.UTC))
     return timestamp
 
 

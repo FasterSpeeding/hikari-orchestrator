@@ -42,7 +42,7 @@ from cryptography.x509 import oid
 def gen_ca() -> tuple[bytes, bytes]:
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    now = datetime.datetime.now(tz=datetime.UTC)
     name = x509.Name(
         [
             x509.NameAttribute(oid.NameOID.COUNTRY_NAME, "JP"),

@@ -56,7 +56,7 @@ DEFAULT_SUBPROCESS_COUNT = os.cpu_count() or 1
 
 
 def _now() -> datetime.datetime:
-    return datetime.datetime.now(tz=datetime.timezone.utc)
+    return datetime.datetime.now(tz=datetime.UTC)
 
 
 class _TrackedShard:
