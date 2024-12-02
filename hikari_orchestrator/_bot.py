@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # BSD 3-Clause License
 #
 # Copyright (c) 2023-2024, Faster Speeding
@@ -31,10 +30,8 @@
 from __future__ import annotations
 
 import asyncio
-import concurrent.futures
-import datetime
 import math
-from collections import abc as collections
+import typing
 
 import hikari
 import hikari.impl.event_factory  # TODO: export at hikari.impl
@@ -43,14 +40,19 @@ import hikari.urls
 from . import _client  # type: ignore[reportPrivateUsage]
 from . import _protos
 
+if typing.TYPE_CHECKING:
+    import concurrent.futures
+    import datetime
+    from collections import abc as collections
+
 
 class Bot(hikari.GatewayBotAware):
     """Bot implementation which is managed by an Orchestrator server."""
 
     __slots__ = (
-        "_cache_settings",
-        "_cache",
         "_ca_cert",
+        "_cache",
+        "_cache_settings",
         "_close_event",
         "_entity_factory",
         "_event_factory",
@@ -252,7 +254,8 @@ class Bot(hikari.GatewayBotAware):
 
     async def join(self) -> None:
         if not self._close_event:
-            raise hikari.ComponentStateConflictError("Not running")
+            error_message = "Not running"
+            raise hikari.ComponentStateConflictError(error_message)
 
         await self._close_event.wait()
 
@@ -263,7 +266,8 @@ class Bot(hikari.GatewayBotAware):
 
     async def close(self) -> None:
         if not self._close_event:
-            raise hikari.ComponentStateConflictError("Not running")
+            error_message = "Not running"
+            raise hikari.ComponentStateConflictError(error_message)
 
         # TODO: inform the server of these closes
         await self._event_manager.dispatch(self._event_factory.deserialize_stopping_event())
@@ -299,7 +303,8 @@ class Bot(hikari.GatewayBotAware):
 
     async def start(self) -> None:
         if self._close_event:
-            raise hikari.ComponentStateConflictError("Already running")
+            error_message = "Already running"
+            raise hikari.ComponentStateConflictError(error_message)
 
         self._close_event = asyncio.Event()
         await self._manager.start()
@@ -313,11 +318,12 @@ class Bot(hikari.GatewayBotAware):
             if self._intents is None:
                 self._intents = hikari.Intents(config.intents)
                 # TODO: find better work-around.
-                self._event_manager._intents = self._intents  # pyright: ignore[reportPrivateUsage]
+                self._event_manager._intents = self._intents  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
 
         # TODO: is there a smarter way to handle this?
         if self._local_shard_count > self._global_shard_count:
-            raise RuntimeError("Local shard count can't be greater than the global shard count")
+            error_message = "Local shard count can't be greater than the global shard count"
+            raise RuntimeError(error_message)
 
         self._voice.start()
         self._rest.start()

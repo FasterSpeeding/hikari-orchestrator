@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # BSD 3-Clause License
 #
 # Copyright (c) 2023-2024, Faster Speeding
@@ -31,12 +30,11 @@
 from __future__ import annotations
 
 import asyncio
-import collections.abc
 import dataclasses
 import datetime
 import typing
 
-import grpc.aio  # type: ignore
+import grpc.aio  # type: ignore  # noqa: PGH003
 import hikari
 from google.protobuf import timestamp_pb2
 
@@ -44,11 +42,17 @@ from . import _protos
 from . import _service  # pyright: ignore[reportPrivateUsage]
 
 if typing.TYPE_CHECKING:
+    import collections.abc
+
     import google.protobuf.message
 
     _T = typing.TypeVar("_T")
     _ShardT = typing.TypeVar("_ShardT", bound=hikari.api.GatewayShard)
     _StreamT = grpc.aio.StreamStreamCall[_protos.Shard, _protos.Instruction]
+
+
+_MAX_NONCE_LENGTH = 32
+_MAX_USERS = 100
 
 
 def _now() -> timestamp_pb2.Timestamp:
@@ -78,8 +82,9 @@ class _TrackedShard:
 
     async def update_status(self, *, status: _protos.ShardState = _protos.ShardState.STARTED) -> None:
         assert isinstance(self.shard, hikari.impl.GatewayShardImpl)
-        seq = self.shard._seq  # pyright: ignore[reportPrivateUsage]  # TODO: Export this publicly
-        session_id = self.shard._session_id  # pyright: ignore[reportPrivateUsage]  # TODO: Export this publicly
+        # TODO: Export these publicly
+        seq = self.shard._seq  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
+        session_id = self.shard._session_id  # pyright: ignore[reportPrivateUsage]  # noqa: SLF001
         state = _protos.Shard(
             state=status,
             last_seen=_now(),
@@ -107,7 +112,7 @@ class _LiveAttributes:
 def _maybe_undefined(
     message: google.protobuf.message.Message, field: str, field_value: _T, /
 ) -> hikari.UndefinedOr[_T]:
-    name = message.WhichOneof("field")
+    name = message.WhichOneof(field)
     assert isinstance(name, str)
     if name and name.startswith("undefined_"):
         return hikari.UNDEFINED
@@ -149,7 +154,8 @@ class Client:
         if self._attributes:
             return self._attributes
 
-        raise RuntimeError("Client not running")
+        error_message = "Client not running"
+        raise RuntimeError(error_message)
 
     @property
     def remote_shards(self) -> collections.abc.Mapping[int, hikari.api.GatewayShard]:
@@ -177,7 +183,8 @@ class Client:
     async def start(self) -> None:
         """Start the client by connecting to the orchestrator."""
         if self._attributes:
-            raise RuntimeError("Already running")
+            error_message = "Already running"
+            raise RuntimeError(error_message)
 
         if self._ca_cert:
             channel = grpc.aio.secure_channel(self._orchestrator_address, grpc.ssl_channel_credentials(self._ca_cert))
@@ -196,7 +203,8 @@ class Client:
     async def stop(self) -> None:
         """Stop the orchestrator client."""
         if not self._attributes:
-            raise RuntimeError("Not running")
+            error_message = "Not running"
+            raise RuntimeError(error_message)
 
         # TODO: track when this is closing to not allow multiple concurrent calls calls
         await asyncio.gather(shard.disconnect() for shard in self._tracked_shards.values())
@@ -216,7 +224,8 @@ class Client:
         instruction = await anext(aiter(stream))
 
         if instruction.type is _protos.DISCONNECT:
-            raise RuntimeError("Failed to connect")
+            error_message = "Failed to connect"
+            raise RuntimeError(error_message)
 
         if instruction.type is not _protos.InstructionType.CONNECT or instruction.shard_id is None:
             raise NotImplementedError(instruction.type)
@@ -233,11 +242,13 @@ class Client:
             tracked_shard.instructions_task = asyncio.create_task(self._handle_instructions(tracked_shard))
             tracked_shard.status_task = asyncio.create_task(_handle_status(tracked_shard))
 
-        except Exception:  # This currently may raise an error which can't be pickled
+        except Exception:  # noqa: BLE001  # This currently may raise an error which can't be pickled
+            # TODO: what is the error type?
             import traceback
 
             traceback.print_exc()
-            raise RuntimeError("Can't pickle error") from None
+            error_message = "Can't pickle error"
+            raise RuntimeError(error_message) from None
 
         return shard
 
@@ -248,7 +259,7 @@ class Client:
                 await shard.disconnect()
                 break
 
-            elif instruction.type is not _protos.InstructionType.GATEWAY_PAYLOAD:
+            if instruction.type is not _protos.InstructionType.GATEWAY_PAYLOAD:
                 continue  # TODO: log
 
             match instruction.WhichOneof("payload"):
@@ -415,16 +426,20 @@ class Client:
         """
         if users is not hikari.UNDEFINED:
             if query or limit:
-                raise ValueError("Cannot pass `users` when `query` or `limit` have been passed")
+                error_message = "Cannot pass `users` when `query` or `limit` have been passed"
+                raise ValueError(error_message)
 
-            if len(users) > 100:
-                raise ValueError("Cannot request more than 100 users")
+            if len(users) > _MAX_USERS:
+                error_message = "Cannot request more than 100 users"
+                raise ValueError(error_message)
 
-        if not 0 <= limit <= 100:
-            raise ValueError("`limit` must be inclusively between 0 and 100")
+        if not 0 <= limit <= _MAX_USERS:
+            error_message = "`limit` must be inclusively between 0 and 100"
+            raise ValueError(error_message)
 
-        if nonce and len(bytes(nonce, "utf-8")) > 32:
-            raise ValueError("`nonce` cannot be longer than 32 bytes")
+        if nonce and len(bytes(nonce, "utf-8")) > _MAX_NONCE_LENGTH:
+            error_message = "`nonce` cannot be longer than 32 bytes"
+            raise ValueError(error_message)
 
         request = _protos.RequestGuildMembers(
             guild_id=int(guild),
@@ -440,7 +455,7 @@ class Client:
 
 
 class _RemoteShard(hikari.api.GatewayShard):
-    __slots__ = ("_close_event", "_shard_count", "_id", "_intents", "_manager", "_state")
+    __slots__ = ("_close_event", "_id", "_intents", "_manager", "_shard_count", "_state")
 
     def __init__(self, manager: Client, shard_id: int, intents: hikari.Intents, shard_count: int, /) -> None:
         self._close_event = asyncio.Event()
@@ -478,16 +493,19 @@ class _RemoteShard(hikari.api.GatewayShard):
         raise NotImplementedError
 
     async def close(self) -> None:
-        raise NotImplementedError("Cannot close remove shards")
+        error_message = "Cannot close remove shards"
+        raise NotImplementedError(error_message)
 
     async def join(self) -> None:
         if self._state is _protos.ShardState.STOPPED:
-            raise hikari.ComponentStateConflictError("Shard isn't running")
+            error_message = "Shard isn't running"
+            raise hikari.ComponentStateConflictError(error_message)
 
         await self._close_event.wait()
 
     async def start(self) -> None:
-        raise NotImplementedError("Cannot start remote shards")
+        error_message = "Cannot start remote shards"
+        raise NotImplementedError(error_message)
 
     async def update_presence(
         self,

@@ -12,7 +12,7 @@ a single system. This uses subprocesses to allow the child bots to run in
 parallel.
 
 ```py
---8<-- "./docs_src/index.py:20:23"
+--8<-- "./docs_src/index.py:19:22"
 ```
 
 Here we provide the bot's token and a callback which'll be called to setup each
@@ -101,7 +101,7 @@ These arguments can also be provided using the environment variables which are
 shown in brackets (including as part of a `.env` file).
 
 ```py
---8<-- "./docs_src/index.py:27:31"
+--8<-- "./docs_src/index.py:26:30"
 ```
 
 Then you need to startup some child bot instances. For this you'll use
