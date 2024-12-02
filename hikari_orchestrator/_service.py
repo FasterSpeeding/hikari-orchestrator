@@ -183,7 +183,7 @@ class Orchestrator(_protos.OrchestratorServicer):
 
         try:
             while not state_event.done():
-                completed, _ = await asyncio.wait((state_event, queue_wait), return_when=asyncio.FIRST_COMPLETED)
+                completed, __ = await asyncio.wait((state_event, queue_wait), return_when=asyncio.FIRST_COMPLETED)
                 if queue_wait in completed:
                     yield await queue_wait
 
