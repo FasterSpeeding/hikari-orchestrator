@@ -124,7 +124,7 @@ exclude = ["hikari_orchestrator/_protos/"]
 default_sessions = [
     "reformat",
     "verify-markup",
-    "ruff",
+    "lint",
     "spell-check",
     "slot-check",
     "type-check",
