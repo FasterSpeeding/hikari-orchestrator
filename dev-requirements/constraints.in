@@ -1,6 +1,0 @@
-click>=8, <9
-cryptography>=41, <42
-grpcio>=1, <2
-grpcio-tools>=1, <2
-hikari>=2.0.0.dev116, <3
-python-dotenv>=1, <2
