@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # BSD 3-Clause License
 #
 # Copyright (c) 2023-2024, Faster Speeding
@@ -28,20 +27,23 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""An GRPC powered service for orchestrating Hikari clusters between processes and machines."""
 from __future__ import annotations
 
 import importlib
-import io
 import logging
 import sys
 import typing
-from collections import abc as collections
 
 import click
 import dotenv
 import hikari
 
 from . import _service  # pyright: ignore[reportPrivateUsage]
+
+if typing.TYPE_CHECKING:
+    import io
+    from collections import abc as collections
 
 _ENV_PREFIX = "ORCHESTRATOR_"
 
@@ -65,7 +67,8 @@ def _cast_intents(value: str, /) -> hikari.Intents:
             intents |= hikari.Intents[name.strip()]
 
         except KeyError:
-            raise ValueError(f"{name!r} is not a valid intent")
+            error_message = f"{name!r} is not a valid intent"
+            raise ValueError(error_message) from None
 
     return intents
 
@@ -148,7 +151,8 @@ def _run_cmd(  # pyright: ignore[reportUnusedFunction]
     callback = getattr(importlib.import_module(module_path), callback_name, "<NOT FOUND>")
 
     if not callable(callback):
-        raise RuntimeError(f"{entrypoint!r} ({callback!r}) is not a function")
+        error_message = f"{entrypoint!r} ({callback!r}) is not a function"
+        raise TypeError(error_message)
 
     callback = typing.cast("collections.Callable[..., typing.Any]", callback)
     _service.run_subprocesses(
@@ -233,6 +237,7 @@ def _server_cmd(  # pyright: ignore[reportUnusedFunction]
 
 
 def main() -> None:
+    """Hikari Orchestrator entry point."""
     dotenv.load_dotenv()
     _cli_entry()
 

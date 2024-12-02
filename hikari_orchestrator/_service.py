@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # BSD 3-Clause License
 #
 # Copyright (c) 2023-2024, Faster Speeding
@@ -41,15 +40,17 @@ import secrets
 import socket
 import typing
 import uuid
-from collections import abc as collections
 
-import grpc.aio  # type: ignore
+import grpc.aio  # type: ignore  # noqa: PGH003
 import hikari
 from google.protobuf import timestamp_pb2
 
 from . import _bot  # pyright: ignore[reportPrivateUsage]
 from . import _protos
 from . import _ssl
+
+if typing.TYPE_CHECKING:
+    from collections import abc as collections
 
 _LOGGER = logging.getLogger("hikari.orchestrator")
 DEFAULT_SUBPROCESS_COUNT = os.cpu_count() or 1
@@ -96,13 +97,14 @@ class _AuthInterceptor(grpc.aio.ServerInterceptor):
         handler_call_details: grpc.HandlerCallDetails,
     ) -> grpc.RpcMethodHandler:
         authorisation = typing.cast(
-            "str | None", dict(handler_call_details.invocation_metadata).get("authorization")  # type: ignore
+            "str | None", dict(handler_call_details.invocation_metadata).get("authorization")  # type: ignore  # noqa: PGH003
         )
 
         if not authorisation or not secrets.compare_digest(
             self._token_hash, authorisation.removeprefix("Bearer ")  # "token "
         ):
-            raise KeyError("Invalid auth")
+            error_message = "Invalid auth"
+            raise KeyError(error_message)
 
         # abort_with_status?
         return await continuation(handler_call_details)
@@ -143,12 +145,12 @@ class Orchestrator(_protos.OrchestratorServicer):
         return str(value).zfill(self._shard_count_zfill)
 
     def Acquire(
-        self, request_iterator: collections.AsyncIterator[_protos.Shard], context: grpc.ServicerContext
+        self, request_iterator: collections.AsyncIterator[_protos.Shard], _: grpc.ServicerContext
     ) -> collections.AsyncIterator[_protos.Instruction]:
         raise NotImplementedError
 
     async def AcquireNext(
-        self, request_iterator: collections.AsyncIterator[_protos.Shard], context: grpc.ServicerContext
+        self, request_iterator: collections.AsyncIterator[_protos.Shard], _: grpc.ServicerContext
     ) -> collections.AsyncIterator[_protos.Instruction]:
         for shard in self._shards.values():
             if shard.state.state is _protos.ShardState.STOPPED:
@@ -224,7 +226,7 @@ class Orchestrator(_protos.OrchestratorServicer):
         _LOGGER.debug("Shard %s: Received GetAllStates request", self._char_fill("*"))
         return _protos.AllShards(shards=(shard.state for shard in self._shards.values()))
 
-    async def SendPayload(self, request: _protos.GatewayPayload, context: grpc.ServicerContext) -> _protos.Undefined:
+    async def SendPayload(self, request: _protos.GatewayPayload, _: grpc.ServicerContext) -> _protos.Undefined:
         match request.WhichOneof("payload"):
             case "presence_update":
                 payload = request.presence_update
@@ -312,7 +314,8 @@ async def _spawn_server(
         port = server.add_secure_port(address, credentials)
 
     elif private_key or ca_cert:
-        raise RuntimeError("private_key and ca_cert must be both passed")
+        error_message = "private_key and ca_cert must be both passed"
+        raise RuntimeError(error_message)
 
     else:
         port = server.add_insecure_port(address)
@@ -333,7 +336,7 @@ def run_server(
     address: str,
     /,
     *,
-    # gateway_info: hikari.GatewayBotInfo | None = None,
+    # gateway_info: hikari.GatewayBotInfo | None = None,  # noqa: ERA001
     intents: hikari.Intents | int = hikari.Intents.ALL_UNPRIVILEGED,
     ca_cert: bytes | None = None,
     private_key: bytes | None = None,
@@ -375,7 +378,7 @@ def run_server(
             token,
             address,
             ca_cert=ca_cert,
-            # gateway_info=gateway_info,
+            # gateway_info=gateway_info,  # noqa: ERA001
             intents=intents,
             private_key=private_key,
             shard_count=shard_count,

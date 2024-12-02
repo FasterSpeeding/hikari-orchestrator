@@ -189,6 +189,9 @@ timeout = 15
 required_plugins = ["pytest-asyncio"]
 filterwarnings = ["error"]
 
+[tool.ruff]
+extend-exclude = ["hikari_orchestrator/_protos/*"]
+
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
@@ -222,6 +225,9 @@ ignore = [
     "PIE790",  # [*] Unnecessary `...` literal
     "PYI013",  # [*] Non-empty class body must not contain `...`
     "T201",    # `print` found
+]
+"hikari_orchestrator/_service.py" = [
+    "N802",  # Function name `GetConfig` should be lowercase
 ]
 "noxfile.py" = [
     "F403",  # `from noxfile import *` used; unable to detect undefined name
