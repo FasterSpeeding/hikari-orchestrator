@@ -41,7 +41,7 @@ import socket
 import typing
 import uuid
 
-import grpc.aio  # type: ignore  # noqa: PGH003
+import grpc.aio  # type: ignore
 import hikari
 from google.protobuf import timestamp_pb2
 
@@ -97,7 +97,7 @@ class _AuthInterceptor(grpc.aio.ServerInterceptor):
         handler_call_details: grpc.HandlerCallDetails,
     ) -> grpc.RpcMethodHandler:
         authorisation = typing.cast(
-            "str | None", dict(handler_call_details.invocation_metadata).get("authorization")  # type: ignore  # noqa: PGH003
+            "str | None", dict(handler_call_details.invocation_metadata).get("authorization")  # type: ignore
         )
 
         if not authorisation or not secrets.compare_digest(
