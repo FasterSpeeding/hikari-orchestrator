@@ -34,7 +34,7 @@ import dataclasses
 import datetime
 import typing
 
-import grpc.aio  # type: ignore  # noqa: PGH003
+import grpc.aio  # type: ignore
 import hikari
 from google.protobuf import timestamp_pb2
 
