@@ -74,7 +74,7 @@ Command line entry points for Hikari Orchestrator: a tool for managing Hikari sh
 
 @click.group(help=_HELP, invoke_without_command=True)
 def _cli_entry() -> None:
-    ...
+    dotenv.load_dotenv()
 
 
 _RUN_HELP = """
@@ -222,7 +222,6 @@ def _server_cmd(  # pyright: ignore[reportUnusedFunction]
 
 
 def main() -> None:
-    dotenv.load_dotenv()
     _cli_entry()
 
 
